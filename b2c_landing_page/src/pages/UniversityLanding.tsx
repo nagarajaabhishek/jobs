@@ -1,9 +1,13 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { BarChart3, Building2, GraduationCap, ArrowRight, Briefcase } from 'lucide-react';
 import CompetitiveTable from '../components/CompetitiveTable';
 import FAQ from '../components/FAQ';
 
 export default function UniversityLanding() {
+    useEffect(() => {
+        document.title = "For Universities | JobsProof.com";
+    }, []);
+
     const [activeDept, setActiveDept] = useState('engineering');
 
     const deptData = {

@@ -1,9 +1,13 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { BrainCircuit, Briefcase, Network, ArrowRight, CheckCircle2, FileText, Target, Map, Database, GitBranch, GraduationCap } from 'lucide-react';
 import CompetitiveTable from '../components/CompetitiveTable';
 import FAQ from '../components/FAQ';
 
 export default function StudentLanding() {
+    useEffect(() => {
+        document.title = "JobsProof.com | Institutional-Grade Career Validation";
+    }, []);
+
     const [activeResume, setActiveResume] = useState('ba');
 
     return (
