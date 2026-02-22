@@ -5,18 +5,27 @@ An automated system for sourcing, filtering, and evaluating job postings using *
 ## Architecture
 ```mermaid
 graph TD
-    A[Sourcing Agent] --> B[Scrapers]
-    B --> C[LinkedIn/Indeed/ATS]
-    A --> D{AI Pre-filter}
-    D -- Pass --> E[Google Sheets Client]
-    D -- Reject --> F[Discard]
-    E --> G[(Google Sheet)]
-    
-    H[Evaluation Agent] --> I[LLM Router]
-    I --> J[OpenRouter / Cloud]
-    I --> K[Gemini 1.5 Flash]
-    I --> L[Local Ollama]
-    H --> E
+    subgraph Sourcing ["1. Sourcing Layer"]
+        A[Sourcing Agent] --> B[Scrapers]
+        B --> C[JobSpy: LinkedIn/Indeed/Google]
+        B --> D[Community & GitHub Repos]
+        A --> E{AI Pre-filter & Tagging}
+        E -- Pass --> F[Google Sheets Client]
+    end
+
+    subgraph Evaluation ["2. Evaluation Layer (Hybrid)"]
+        G[Evaluation Agent] --> H[LLM Router]
+        H -- Primary --> I[OpenRouter / Cloud Bridge]
+        H -- Fallback --> J[Gemini 1.5 API]
+        H -- Private --> K[Local Ollama / Qwen]
+        I --> L[Match Scoring 2.0]
+        J --> L
+        K --> L
+        M[Master Context & Role Specs] --> G
+    end
+
+    F --> N[(Google Sheet)]
+    L -- SSOT --> F
 ```
 
 ## Features
