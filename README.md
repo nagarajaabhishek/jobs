@@ -1,28 +1,38 @@
 # Job Automation Pipeline
 
-An automated system for sourcing, filtering, and evaluating job postings using local LLMs (Ollama) and Google Sheets.
+An automated system for sourcing, filtering, and evaluating job postings using **OpenRouter (Unified Cloud)**, Gemini, and local LLMs (Ollama).
 
 ## Architecture
 ```mermaid
 graph TD
     A[Sourcing Agent] --> B[Scrapers]
-    B --> C[LinkedIn/Google/Glassdoor]
-    B --> D[Jobright GitHub Repos]
-    A --> E[Filter Logic]
-    E --> F[Google Sheets Client]
-    F --> G[(Google Sheet)]
-    H[Evaluation Agent] --> I[Ollama / llama3.2]
-    I --> J[Master Context]
-    H --> F
+    B --> C[LinkedIn/Indeed/ATS]
+    A --> D{AI Pre-filter}
+    D -- Pass --> E[Google Sheets Client]
+    D -- Reject --> F[Discard]
+    E --> G[(Google Sheet)]
+    
+    H[Evaluation Agent] --> I[LLM Router]
+    I --> J[OpenRouter / Cloud]
+    I --> K[Gemini 1.5 Flash]
+    I --> L[Local Ollama]
+    H --> E
 ```
 
+## Features
+- **Unified Cloud Bridge**: One API key (OpenRouter) to access any model (Claude, DeepSeek, Gemini).
+- **AI-Enhanced Sourcing**: 
+    - **Smart Sniffing**: Drops irrelevant roles before they hit the sheet.
+    - **Query Expansion**: Brainstorms search terms for better coverage.
+    - **Dynamic Tagging**: Auto-tags jobs with Style, Seniority, and Industry.
+- **Tiered Resilience**: Hybrid architecture with automated fallback (OpenRouter -> Gemini -> local Ollama).
+
 ## Project Structure
-- `src/core/`: Shared clients (Sheets, LLM).
+- `src/core/`: Shared clients (Sheets, `LLMRouter`).
 - `src/scrapers/`: Individual job site scrapers.
-- `src/agents/`: Business logic (Sourcing, Evaluation).
+- `src/agents/`: Business logic (Sourcing, Evaluation, Sponsorship).
 - `src/prompts/`: LLM System Prompts.
 - `config/`: Credentials and local configuration.
-- `.agent/workflows/`: Automation steps for AI agents.
 
 ## Usage
 Run the full pipeline:
@@ -32,15 +42,13 @@ python3 run_pipeline.py
 For detailed agent instructions, see [.agent/workflows/job_pipeline.md](.agent/workflows/job_pipeline.md).
 
 ## Configuration
-- **Google Sheets**: Place `config/credentials.json` (service account key) for the Sheets API.
-- **Environment**: Copy `.env.example` to `.env`. Optional: `OLLAMA_HOST`, `PROFILE_DIR` or `MASTER_PROFILE_PATH`, `PIPELINE_CONFIG`, `GEMINI_API_KEY` (for sponsorship agent).
-- **Pipeline**: Edit `config/pipeline.yaml` to change queries, locations, `results_wanted`, `max_workers`, and evaluation batch sizes. Override file path with `PIPELINE_CONFIG`.
+- **Environment**: Copy `.env.example` to `.env`. Required: `OPENROUTER_API_KEY`, `GEMINI_API_KEY` (fallback).
+- **Pipeline**: Edit `config/pipeline.yaml` to change:
+    - `sourcing`: Queries, `expand_ai_queries`, `use_ai_filter`.
+    - `evaluation`: `provider` (hybrid/openrouter/gemini/ollama), `openrouter_model`.
 
 ## Job descriptions (JD)
-- **Not in Sheets**: Full JDs are not stored in Google Sheets (column is empty).
-- **Local cache**: When jobs are added, their descriptions are saved to `config/jd_cache.json` (keyed by canonical URL). The evaluator reads from this cache so evaluation still uses the full JD. Override path with `JD_CACHE_PATH` in `.env` if needed.
+- **Local cache**: Full JDs are stored in `config/jd_cache.json` (keyed by canonical URL) to avoid cluttering Google Sheets while keeping evaluation context high.
 
-## Duplicate & already-applied handling
-- **Canonical URL**: Job links are normalized (strip UTM/ref params, fragment, trailing slash) so the same role from two sources is treated as one. Duplicates are not added.
-- **Applied? (Y/N)**: Mark **Y** in the sheet when you apply. Those jobs are never re-added or re-evaluated in future runs.
-- **Already seen**: If a NEW job’s canonical URL was already evaluated or applied in any tab, the evaluator skips it and sets Match Type to **Already seen** (no LLM call).
+## Sorting & Verdicts
+- **SSOT**: Sorting logic is centralized around a 0-100 "Apply Conviction Score". High scores (🔥/✅) are sorted to the top automatically.
