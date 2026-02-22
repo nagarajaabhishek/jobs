@@ -1,0 +1,29 @@
+# Pipeline configuration (optional). Override via env: PIPELINE_CONFIG path.
+# If missing, run_pipeline.py and evaluator use defaults below.
+
+sourcing:
+  queries:
+    - "Product Manager"
+    - "Project Manager"
+    - "Program Manager"
+    - "Business Analyst"
+    - "Product Owner"
+    - "Scrum Master"
+    - "Strategy Operations"
+    - "GTM Manager"
+  locations:
+    - "Remote"
+    - "United States"
+    - "Dubai"
+  results_wanted: 50
+  max_workers: 4
+  # ATS job boards (add company slugs; 404s are skipped)
+  ats_boards:
+    greenhouse: [canva, discord, figma]
+    lever: [netflix, palantir, discord]
+    ashby: [ashby, notion, figma, linear, vercel, ramp]
+
+evaluation:
+  batch_eval_size: 4
+  sheet_batch_size: 25
+  limit: 300

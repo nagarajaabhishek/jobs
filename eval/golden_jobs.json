@@ -1,0 +1,51 @@
+[
+  {
+    "title": "Associate Product Manager",
+    "company": "Tech Corp",
+    "location": "Remote, USA",
+    "description": "We are looking for a Product Manager who will own the roadmap and work with engineering. Requirements: PRDs, stakeholder management, agile, user stories, backlog prioritization, and experience with SDLC. Must work with cross-functional teams.",
+    "expected_match_type": "For sure"
+  },
+  {
+    "title": "Product Manager",
+    "company": "Startup Inc",
+    "location": "United States",
+    "description": "Drive product strategy and roadmap. You will write PRDs, run sprints, and collaborate with design and engineering. Experience with Agile and Scrum required. Nice to have: API design, user research.",
+    "expected_match_type": "Worth Trying"
+  },
+  {
+    "title": "Business Analyst",
+    "company": "Finance Co",
+    "location": "Dubai",
+    "description": "Gather requirements, document processes, and support product owners. Knowledge of JIRA and Confluence. Must have 2+ years in business analysis or product support.",
+    "expected_match_type": "Worth Trying"
+  },
+  {
+    "title": "Technical Program Manager",
+    "company": "BigTech",
+    "location": "Remote",
+    "description": "Manage cross-functional programs. You will need experience with roadmap planning, risk management, and stakeholder communication. PMP or similar certification preferred. 8+ years experience.",
+    "expected_match_type": "Ambitious"
+  },
+  {
+    "title": "Senior Product Manager",
+    "company": "Enterprise Co",
+    "location": "USA",
+    "description": "Lead product for a key vertical. 5+ years PM experience, PRDs, roadmap, go-to-market. Must have led a team.",
+    "expected_match_type": "Not at all"
+  },
+  {
+    "title": "Product Owner",
+    "company": "Agile Labs",
+    "location": "Remote",
+    "description": "Own the backlog and work with Scrum team. Create user stories, accept criteria, and run sprint ceremonies. Experience with Agile/Scrum and stakeholder management required.",
+    "expected_match_type": "For sure"
+  },
+  {
+    "title": "Marketing Coordinator",
+    "company": "Random Inc",
+    "location": "USA",
+    "description": "Support marketing campaigns and social media. No product or technical experience required.",
+    "expected_match_type": "Not at all"
+  }
+]

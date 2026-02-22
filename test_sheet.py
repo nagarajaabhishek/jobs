@@ -1,9 +1,11 @@
-from google_sheets_client import GoogleSheetsClient
-from datetime import datetime
-
+from src.core.google_sheets_client import GoogleSheetsClient
 client = GoogleSheetsClient()
 client.connect()
-today_str = datetime.now().strftime("%Y-%m-%d")
-worksheet = client.client.open(client.sheet_name).worksheet(today_str)
-headers = worksheet.row_values(1)
-print(headers)
+records = client.sheet.get_all_records()
+print(f"Total jobs: {len(records)}")
+if records:
+    print(f"First job status: {records[0].get('Status')}")
+    print(f"First job desc length: {len(str(records[0].get('Job Description', '')))}")
+    
+new_jobs = [r for r in records if r.get('Status') == 'NEW']
+print(f"Found {len(new_jobs)} 'NEW' jobs.")

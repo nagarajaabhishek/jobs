@@ -4,9 +4,14 @@ import re
 class JobrightScraper:
     def __init__(self):
         self.sources = {
-            "Jobright_Data_Analysis": "https://raw.githubusercontent.com/jobright-ai/2026-Data-Analysis-Internship/master/README.md",
-            "Jobright_Business_Analyst": "https://raw.githubusercontent.com/jobright-ai/2026-Business-Analyst-Internship/master/README.md"
+
+            "Jobright_Business_Analyst": "https://raw.githubusercontent.com/jobright-ai/2026-Business-Analyst-Internship/master/README.md",
+            "Jobright_Product_Management_New_Grad": "https://raw.githubusercontent.com/jobright-ai/2026-Product-Management-New-Grad/master/README.md",
+            "Jobright_Product_Management_Internship": "https://raw.githubusercontent.com/jobright-ai/2026-Product-Management-Internship/master/README.md",
+            "Jobright_H1B_Jobs_Tech": "https://raw.githubusercontent.com/jobright-ai/Daily-H1B-Jobs-In-Tech/master/README.md",
+            "Jobright_Business_Analyst_New_Grad": "https://raw.githubusercontent.com/jobright-ai/2026-Business-Analyst-New-Grad/master/README.md"
         }
+
 
     def extract_link_and_text(self, cell_content):
         """Extracts URL and text from a markdown link like [text](url), or returns text if no link."""

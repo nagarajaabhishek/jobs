@@ -1,11 +1,10 @@
 import requests
 
+
 class ATS_Scraper:
-    def __init__(self):
-        # We need a list of known company boards for greenhouse and lever
-        # These are usually the 'clientname' parameter
-        self.greenhouse_boards = ["canva", "discord", "figma"] # examples
-        self.lever_boards = ["netflix", "palantir", "discord"] # examples
+    def __init__(self, greenhouse_boards=None, lever_boards=None):
+        self.greenhouse_boards = greenhouse_boards or ["canva", "discord", "figma"]
+        self.lever_boards = lever_boards or ["netflix", "palantir", "discord"]
 
     def scrape_greenhouse(self, board_token):
         """Scrapes jobs from Greenhouse Board API v1."""

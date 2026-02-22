@@ -6,3 +6,4 @@ google-genai
 pyyaml
 python-dotenv
 openai
+requests
