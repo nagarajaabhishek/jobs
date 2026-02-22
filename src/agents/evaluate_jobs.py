@@ -14,22 +14,230 @@ BATCH_EVAL_SIZE_DEFAULT = 4
 SHEET_BATCH_SIZE_DEFAULT = 25
 
 
+def score_to_verdict(score: int) -> str:
+    """Map Apply Conviction Score to tiered verdict. Single source of truth for tests and evaluate_all."""
+    if score >= 85:
+        return "🔥 Auto-Apply"
+    if score >= 70:
+        return "✅ Strong Match"
+    if score >= 50:
+        return "⚖️ Worth Considering"
+    return "❌ No"
+
+
 class JobEvaluator:
     def __init__(self):
         self.sheets_client = GoogleSheetsClient()
-        self.llm = LLMRouter()
+        eval_cfg = get_evaluation_config()
+        ollama_model = eval_cfg.get("ollama_model") or os.environ.get("OLLAMA_MODEL") or "llama3.2"
+        self.llm = LLMRouter(model=ollama_model)
         self.prompt_path = "src/prompts/gemini_job_fit_analyst.md"
-        self.roles = ["TPM", "PO", "Business Analyst", "Scrum Master", "Manager", "GTM"]
+        self.roles = sorted([
+            "Product Manager (TPM)", "Product Owner (PO)", "Business Analyst (BA)", 
+            "Scrum Master (SM)", "Manager", "Go-To Market (GTM)"
+        ])
+        
+        # Load verified sponsors
+        self.sponsors = {}
+        self.cache_updated = False
+        self.sponsors_path = "data/sponsors.yaml"
+        if os.path.exists(self.sponsors_path):
+            with open(self.sponsors_path, "r") as f:
+                self.sponsors = yaml.safe_load(f) or {}
 
-        # Profile path: env MASTER_PROFILE_PATH (full path) or PROFILE_DIR (dir containing master_context.yaml)
-        master_path = os.environ.get("MASTER_PROFILE_PATH")
-        if master_path and os.path.isfile(master_path):
-            self.master_profile_path = master_path
-            self.profiles_dir = os.path.dirname(master_path)
-        else:
-            profile_dir = os.environ.get("PROFILE_DIR", "/Users/abhisheknagaraja/Documents/Resume_Agent/.agent/data/Abhishek/")
-            self.profiles_dir = profile_dir.rstrip(os.sep)
+        # Load Intelligence Caches
+        self.skill_gaps_path = "data/skill_gap_frequency.yaml"
+        self.skill_gaps = self._load_yaml_cache(self.skill_gaps_path)
+        
+        self.salary_benchmarks_path = "data/salary_benchmarks.yaml"
+        self.salary_benchmarks = self._load_yaml_cache(self.salary_benchmarks_path)
+        
+        self.company_insights_path = "data/company_insights.yaml"
+        self.company_insights = self._load_yaml_cache(self.company_insights_path)
+
+        # Local migration path: prioritize 'data/' within this repo
+        local_profiles = os.path.join(os.getcwd(), "data", "profiles")
+        if os.path.isdir(local_profiles):
+            self.profiles_dir = local_profiles
             self.master_profile_path = os.path.join(self.profiles_dir, "master_context.yaml")
+        else:
+            # Fallback path if data/ doesn't exist (legacy/env)
+            master_path = os.environ.get("MASTER_PROFILE_PATH")
+            if master_path and os.path.isfile(master_path):
+                self.master_profile_path = master_path
+                self.profiles_dir = os.path.dirname(master_path)
+            else:
+                profile_dir = os.environ.get("PROFILE_DIR", "/Users/abhisheknagaraja/Documents/Resume_Agent/.agent/data/Abhishek/")
+                self.profiles_dir = profile_dir.rstrip(os.sep)
+                self.master_profile_path = os.path.join(self.profiles_dir, "master_context.yaml")
+        
+        # Pre-cache role summaries for Deep Match
+        self.role_summaries = self._load_role_summaries()
+
+    def _load_role_summaries(self):
+        """Dynamically loads and pre-summarizes all role profiles found in profiles_dir."""
+        summaries = {}
+        found_roles = []
+        
+        if not os.path.exists(self.profiles_dir):
+            return summaries
+
+        # Scan for all role_*.yaml files
+        for filename in os.listdir(self.profiles_dir):
+            if filename.startswith("role_") and filename.endswith(".yaml"):
+                fpath = os.path.join(self.profiles_dir, filename)
+                try:
+                    with open(fpath, "r") as f:
+                        content = yaml.safe_load(f)
+                    
+                    # Derive role name from filename or internal name
+                    # e.g., role_technical_product_manager.yaml -> Product Manager (TPM)
+                    # For now, we'll try to match against our standard set or use a cleaned filename
+                    base = filename.replace("role_", "").replace(".yaml", "").replace("_", " ").title()
+                    
+                    # Map common patterns to our standardized names for better consistency
+                    role_name = base
+                    if "Tpm" in base or "Technical Product Manager" in base: role_name = "Product Manager (TPM)"
+                    elif "Po" in base or "Product Owner" in base: role_name = "Product Owner (PO)"
+                    elif "Ba" in base or "Business Analyst" in base: role_name = "Business Analyst (BA)"
+                    elif "Sm" in base or "Scrum Master" in base: role_name = "Scrum Master (SM)"
+                    elif "Gtm" in base: role_name = "Go-To Market (GTM)"
+                    
+                    found_roles.append(role_name)
+                    
+                    # Use simplified summary logic for roles
+                    s = f"### {role_name} SPECIALIZATION\n"
+                    s += f"Summary: {content.get('summary', 'N/A')}\n"
+                    top_skills = []
+                    for entry in content.get('skills', [])[:3]:
+                        if isinstance(entry, dict):
+                            cat = entry.get('category')
+                            skills = entry.get('skill_list') or entry.get('skills')
+                            top_skills.append(f"{cat}: {skills}")
+                    s += f"Key Skills: {'; '.join(top_skills)}\n"
+                    summaries[role_name] = s
+                except Exception as e:
+                    print(f"  ⚠ Error loading profile {filename}: {e}")
+        
+        self.roles = sorted(list(set(found_roles)))
+        return summaries
+
+    def get_verified_sponsorship(self, company):
+        """Checks if a company has a verified sponsorship history."""
+        if not company: return "Unknown"
+        # Exact match or partial match
+        for key, val in self.sponsors.items():
+            if key.lower() == company.lower() or key.lower() in company.lower():
+                return val
+        return "Not in verified database (LLM should estimate)"
+
+    def get_strategic_priority(self, location):
+        """Calculates a priority score based on location preferences."""
+        loc = (location or "").lower()
+        if "texas" in loc or "arlington" in loc or "dallas" in loc or "austin" in loc:
+            return "HIGH (Texas Resident - Top Priority)"
+        if "remote" in loc:
+            return "MEDIUM-HIGH (Remote - Preferred)"
+        if "dubai" in loc or "uae" in loc or "emirates" in loc:
+            return "MEDIUM (Dubai Target)"
+        return "STANDARD (On-site/Normal Priority)"
+
+    def update_sponsorship_cache(self, company, status):
+        """Updates the sponsorship cache if a definitive status is found."""
+        if not company or not status: return
+        clean_company = company.strip()
+        clean_status = status.strip()
+        
+        # We only cache definitive "Likely" or "Unlikely" status from the LLM
+        # if the company isn't already verified with a strong record.
+        if "Likely:" in clean_status or "Unlikely:" in clean_status:
+            # Check if we already have it
+            existing = self.sponsors.get(clean_company)
+            if not existing or "LLM estimated" in existing or "Not in verified database" in str(existing):
+                label = "Sponsors" if "Likely:" in clean_status else "Does Not Sponsor"
+                self.sponsors[clean_company] = f"{label} (Learned from JD)"
+                self.cache_updated = True
+                print(f"    ✨ Cached sponsorship for '{clean_company}': {label}")
+
+    def save_sponsorship_cache(self):
+        """Saves the cached sponsors back to YAML if updated."""
+        if self.cache_updated:
+            print("\nUpdating sponsorship cache (data/sponsors.yaml)...")
+            try:
+                with open(self.sponsors_path, "w") as f:
+                    yaml.dump(self.sponsors, f, sort_keys=True)
+                self.cache_updated = False
+            except Exception as e:
+                print(f"  ❌ Error saving sponsorship cache: {e}")
+
+    def _load_yaml_cache(self, path):
+        """Helper to load YAML cache safely."""
+        if os.path.exists(path):
+            try:
+                with open(path, "r") as f:
+                    data = yaml.safe_load(f)
+                    return data if isinstance(data, dict) else {}
+            except Exception:
+                return {}
+        return {}
+
+    def update_intelligence_caches(self, job_data, eval_results):
+        """Updates all intelligence caches based on evaluation findings."""
+        company = job_data.get("Company")
+        if not company: return
+        
+        self.cache_updated = True # Trigger global save
+        
+        # 1. Skill Gaps freq
+        missing_str = eval_results.get("missing_skills", "")
+        if missing_str and "N/A" not in missing_str:
+            for skill in [s.strip() for s in missing_str.split(",") if s.strip()]:
+                # Normalize skill name (lowercase, remove noise)
+                norm_skill = skill.lower().replace("*", "").replace(".", "").strip()
+                if norm_skill:
+                    self.skill_gaps[norm_skill] = self.skill_gaps.get(norm_skill, 0) + 1
+        
+        # 2. Salary Benchmarks
+        salary = eval_results.get("salary", "")
+        if salary and "Not mentioned" not in salary:
+            role = eval_results.get("recommended_resume", "Unknown PM")
+            loc = job_data.get("Location", "Unknown")
+            if role not in self.salary_benchmarks: self.salary_benchmarks[role] = {}
+            # We store the latest observed range
+            self.salary_benchmarks[role][loc] = salary
+            
+        # 3. Company Insights (Tech Stack)
+        tech_stack = eval_results.get("tech_stack", "")
+        if tech_stack and "Not mentioned" not in tech_stack:
+            if company not in self.company_insights: 
+                self.company_insights[company] = {"tech_stack": [], "sentiment": "Identified"}
+            
+            # Merge stacks
+            current_stack = set(self.company_insights[company].get("tech_stack", []))
+            new_techs = [t.strip() for t in tech_stack.split(",") if t.strip()]
+            current_stack.update(new_techs)
+            self.company_insights[company]["tech_stack"] = sorted(list(current_stack))
+
+    def save_all_caches(self):
+        """Atomically saves all intelligence caches."""
+        if not self.cache_updated: return
+        
+        print("\nUpdating Intelligence Caches in data/...")
+        caches = [
+            (self.sponsors_path, self.sponsors),
+            (self.skill_gaps_path, self.skill_gaps),
+            (self.salary_benchmarks_path, self.salary_benchmarks),
+            (self.company_insights_path, self.company_insights)
+        ]
+        
+        for path, data in caches:
+            try:
+                with open(path, "w") as f:
+                    yaml.dump(data, f, sort_keys=True)
+            except Exception as e:
+                print(f"  ❌ Error saving cache to {path}: {e}")
+        
+        self.cache_updated = False
 
 
     def passes_initial_filter(self, job):
@@ -165,12 +373,19 @@ class JobEvaluator:
             h1b_status = h1b_match.group(1).strip()
 
         # 3. Parse Recommended Resume
-        recommended = "General"
+        recommended = "Unknown"
         resume_match = re.search(r"\*\*Recommended Resume\*\*\s*\n*(.*?)(?=\n\n|\n\*\*|$)", text, re.DOTALL | re.IGNORECASE)
         if resume_match:
-            recommended = resume_match.group(1).strip()
-            # Clean up potential extra markers from Ollama
-            recommended = recommended.replace('[', '').replace(']', '')
+            val = resume_match.group(1).strip()
+            # Strict cleaning
+            val = val.replace('[', '').replace(']', '').replace('*', '').strip()
+            # Check if it matches any of our allowed roles
+            for role in self.roles:
+                if role.lower() in val.lower() or (re.search(r"\((.*?)\)", role) and re.search(r"\((.*?)\)", role).group(1).lower() in val.lower()):
+                    recommended = role
+                    break
+            if recommended == "Unknown":
+                recommended = val # Fallback to LLM output if it doesn't match clean list
             
         # 4. Parse Match Type
         match_type = "Unknown"
@@ -216,9 +431,54 @@ class JobEvaluator:
         reason_match = re.search(r"\*\*Reasoning\*\*\s*\n*(.*?)(?=\n\n|\n\*\*|Skill Gap Summary|$)", text, re.DOTALL | re.IGNORECASE)
         if reason_match:
             reasoning = reason_match.group(1).strip()
+            
+        # 7. Parse Salary
+        salary = "Not mentioned"
+        salary_match = re.search(r"\*\*Salary Range\*\*\s*\n*(.*?)(?=\n\n|\n\*\*|$)", text, re.DOTALL | re.IGNORECASE)
+        if salary_match:
+            salary = salary_match.group(1).strip()
+            
+        # 8. Parse Tech Stack
+        tech_stack = "N/A"
+        tech_match = re.search(r"\*\*Tech Stack Identified\*\*\s*\n*(.*?)(?=\n\n|\n\*\*|$)", text, re.DOTALL | re.IGNORECASE)
+        if tech_match:
+            tech_stack = tech_match.group(1).strip()
 
-        return match_type, recommended, h1b_status, loc_ver, skills, reasoning
+        # 9. Parse Apply Conviction Score
+        score = 0
+        # More robust regex to handle "Score: 85", "Score: 85/100", "score of 85", etc.
+        score_patterns = [
+            r"Apply Conviction Score:\s*(\d+)",
+            r"Score:\s*(\d+)",
+            r"score of\s*(\d+)",
+            r"Confidence:\s*(\d+)"
+        ]
+        
+        for pattern in score_patterns:
+            score_match = re.search(pattern, text, re.IGNORECASE)
+            if score_match:
+                score = int(score_match.group(1))
+                break
+        
+        # Cleanup score if LLM outputted something like 1000 or -1
+        score = max(0, min(100, score))
 
+        return match_type, recommended, h1b_status, loc_ver, skills, reasoning, salary, tech_stack, score
+
+    def _compute_fallback_score(self, jd_text: str, location: str) -> int:
+        """
+        Compute Apply Conviction Score when LLM returns no score (parse failure or missing).
+        Used by evaluate_all and testable without sheets/LLM.
+        """
+        keywords = self.get_profile_skill_keywords()
+        overlap = self.count_skill_overlap(jd_text or "", keywords)
+        score = min(50, overlap * 10)
+        priority = self.get_strategic_priority(location)
+        if "HIGH" in priority:
+            score += 20
+        if "MEDIUM" in priority:
+            score += 10
+        return score
 
     def evaluate_all(self, mode="NEW", limit=None):
         eval_cfg = get_evaluation_config()
@@ -226,6 +486,12 @@ class JobEvaluator:
             limit = eval_cfg.get("limit", 300)
         sheet_batch_size = eval_cfg.get("sheet_batch_size", SHEET_BATCH_SIZE_DEFAULT)
         batch_size = eval_cfg.get("batch_eval_size", BATCH_EVAL_SIZE_DEFAULT)
+
+        print(f"Evaluation backend: Ollama (model: {self.llm.ollama_model})")
+        ok, err = self.llm.check_ollama_available()
+        if not ok:
+            print(f"  ⚠ {err}")
+            print("  Continuing anyway; batches will show 'LLM failed' if Ollama is not running.")
 
         if mode == "MAYBE":
             print("Fetching 'Maybe' jobs for re-evaluation...")
@@ -240,123 +506,146 @@ class JobEvaluator:
 
         print(f"Found {len(new_jobs)} jobs. Loading Context...")
         already_seen = self.sheets_client.get_already_evaluated_or_applied_canonical_urls()
-        sys_prompt = self.load_system_prompt()
-        profiles_prompt = self.load_user_profiles()
-        grounded_sys_prompt = f"{sys_prompt}\n\n### USER PROFILE SUMMARY (GROUND TRUTH)\n{profiles_prompt}"
+        # Prepare role specializations text for Deep Match
+        role_specs_text = "\n\n".join(self.role_summaries.values())
+        grounded_sys_prompt = f"{sys_prompt}\n\n### USER PROFILE SUMMARY\n{profiles_prompt}\n\n### ROLE-SPECIFIC SPECIALIZATIONS (Use for Deep Matching)\n{role_specs_text}"
+        
         profile_keywords = self.get_profile_skill_keywords()
-        updates = []
         evaluated_match_types = []
 
-        # --- 0. DUPLICATE / ALREADY-SEEN: skip jobs already evaluated or applied (any tab) ---
+        # Track updates per worksheet to minimize API calls
+        updates_by_ws = {}
+
+        # --- 0. DUPLICATE / ALREADY-SEEN ---
         to_eval = []
         for job in new_jobs:
             canonical = normalize_job_url(job.get("Job Link") or job.get("url") or "")
-            if canonical and canonical in already_seen:
-                print(f"  Skip (already seen/applied): {job.get('Role Title')} at {job.get('Company')}")
-                updates.append((
-                    job["_row_index"],
-                    "Already seen",
-                    "—",
-                    "N/A",
-                    "N/A",
-                    "Duplicate of previously evaluated or applied job; not re-evaluated.",
+            target_ws = job.get("_worksheet") or worksheet
+            
+            # Calibration: In re-evaluation mode, we DON'T skip already seen if they are "Maybe"
+            is_maybe_reeval = (mode == "MAYBE")
+            
+            if canonical and canonical in already_seen and not is_maybe_reeval:
+                print(f"  Skip (already seen): {job.get('Role Title')} at {job.get('Company')}")
+                if target_ws not in updates_by_ws: updates_by_ws[target_ws] = []
+                updates_by_ws[target_ws].append((
+                    job["_row_index"], "Already seen", "—", "N/A", "N/A", "Duplicate; skipped."
                 ))
                 evaluated_match_types.append("Already seen")
-                self.save_batch_if_needed(updates, worksheet, batch_size=sheet_batch_size)
                 continue
             to_eval.append(job)
-        new_jobs = to_eval
-        to_eval = []
 
-        # --- 1. FAST FILTER: collect jobs that need LLM vs. reject immediately ---
-        for job in new_jobs:
+        # --- 1. FAST FILTER ---
+        new_to_eval = []
+        for job in to_eval:
             if mode == "NEW":
                 passed, reject_reason = self.passes_initial_filter(job)
                 if not passed:
-                    print(f"  Filtered: {job.get('Role Title')} at {job.get('Company')} -> {reject_reason}")
-                    updates.append((
-                        job["_row_index"],
-                        "Not at all",
-                        "None (Filtered)",
-                        "N/A",
-                        "N/A",
-                        reject_reason,
+                    print(f"  Filtered: {job.get('Role Title')} -> {reject_reason}")
+                    target_ws = job.get("_worksheet") or worksheet
+                    if target_ws not in updates_by_ws: updates_by_ws[target_ws] = []
+                    updates_by_ws[target_ws].append((
+                        job["_row_index"], "Not at all", "None (Filtered)", "N/A", "N/A", reject_reason
                     ))
                     evaluated_match_types.append("Not at all")
                     continue
-            to_eval.append(job)
+            new_to_eval.append(job)
+        to_eval = new_to_eval
 
-        self.save_batch_if_needed(updates, worksheet, batch_size=sheet_batch_size)
-
-        # --- 2. BATCH LLM EVALUATION: process to_eval in chunks ---
+        # --- 2. BATCH LLM EVALUATION ---
         for chunk_start in range(0, len(to_eval), batch_size):
             chunk = to_eval[chunk_start : chunk_start + batch_size]
             job_contexts = []
             for i, job in enumerate(chunk):
-                jd_text = (job.get("Job Description") or "").strip()
                 job_link = job.get("Job Link") or job.get("url") or ""
-                if not jd_text:
-                    logging.warning(
-                        "Empty Job Description for '%s' at %s (row %s). Fit quality may be lower. Consider re-sourcing with full JD.",
-                        job.get("Role Title"), job.get("Company"), job.get("_row_index"),
-                    )
-                    jd_text = f"[No description available.] Estimate fit from title/location only. Job Link: {job_link}"
+                company = job.get("Company") or ""
+                location = job.get("Location") or ""
+                jd_text = (self.sheets_client.get_jd_for_url(job_link) or "").strip()
+                if not jd_text: jd_text = "[No JD in cache.]"
+                
+                # OPTIMIZATIONS: Verified Metadata
+                sponsor_info = self.get_verified_sponsorship(company)
+                priority = self.get_strategic_priority(location)
+                
                 overlap = self.count_skill_overlap(jd_text, profile_keywords)
-                nudge = ""
-                if overlap >= 5:
-                    nudge = "\n[Pre-check: This JD contains 5+ skills from the profile. You MUST rate at least Worth Trying. Do NOT use Maybe.]"
-                job_contexts.append(
-                    f"### JOB POSTING {i + 1}\n"
-                    f"Job Title: {job.get('Role Title')}\nCompany: {job.get('Company')}\n"
-                    f"Location: {job.get('Location')}\nJob Description: {jd_text}{nudge}"
+                nudge = f"\n[Pre-check: {overlap} skill overlap.]"
+                
+                job_context = (
+                    f"### JOB POSTING {i+1}\n"
+                    f"Title: {job.get('Role Title')}\n"
+                    f"Company: {company}\n"
+                    f"Strategic Priority: {priority}\n"
+                    f"Verified Sponsorship History: {sponsor_info}\n"
+                    f"JD Content: {jd_text}{nudge}"
                 )
+                job_contexts.append(job_context)
+            
             user_prompt = "\n\n".join(job_contexts)
             if len(chunk) > 1:
-                user_prompt += (
-                    "\n\n---\nEvaluate each job above. For each job output the same Markdown format "
-                    "(Recommended Resume, Match Type, Reasoning, Skill Gap Summary). "
-                    "Separate each job's evaluation with exactly: ---EVAL---"
-                )
+                user_prompt += "\n\nEvaluate each job separately. Separate with: ---EVAL---"
 
-            print(f"  Batch evaluating jobs {chunk_start + 1}-{chunk_start + len(chunk)}/{len(to_eval)}...")
-            raw_text, engine_used = self.llm.generate_content(
-                system_prompt=grounded_sys_prompt,
-                user_prompt=user_prompt,
-            )
+            print(f"  Batch evaluating {chunk_start+1}-{chunk_start+len(chunk)}...")
+            raw_text, engine_used = self.llm.generate_content(grounded_sys_prompt, user_prompt)
 
             if engine_used == "FAILED":
                 for job in chunk:
-                    updates.append((job["_row_index"], "Maybe", "Unknown", "N/A", "N/A", "LLM failed"))
+                    target_ws = job.get("_worksheet") or worksheet
+                    if target_ws not in updates_by_ws: updates_by_ws[target_ws] = []
+                    updates_by_ws[target_ws].append((job["_row_index"], "Maybe", "Unknown", "N/A", "N/A", "LLM failed"))
                     evaluated_match_types.append("Maybe")
-                self.save_batch_if_needed(updates, worksheet, batch_size=sheet_batch_size)
                 continue
 
-            # Split by ---EVAL--- and parse each block (same order as chunk)
             blocks = [b.strip() for b in raw_text.split("---EVAL---") if b.strip()]
             for i, job in enumerate(chunk):
                 block = blocks[i] if i < len(blocks) else ""
-                jd_text = job.get("Job Description", "") or ""
-                overlap = self.count_skill_overlap(jd_text, profile_keywords)
+                target_ws = job.get("_worksheet") or worksheet
+                if target_ws not in updates_by_ws: updates_by_ws[target_ws] = []
+                
                 if block:
-                    match_type, recommended, h1b, loc_ver, missing, reasoning = self.parse_evaluation(block)
-                    # Calibration override: 5+ skill overlap but model said Maybe → upgrade to Worth Trying
-                    if overlap >= 5 and match_type == "Maybe":
-                        match_type = "Worth Trying"
-                        missing = (missing or "") + " [Auto-upgraded from Maybe: 5+ skill overlap]"
-                    updates.append((job["_row_index"], match_type, recommended, h1b, loc_ver, missing))
-                    evaluated_match_types.append(match_type)
-                    print(f"    -> {job.get('Role Title')}: {match_type} | {recommended}")
-                else:
-                    # No parse: if high overlap, still give Worth Trying
-                    fallback = "Worth Trying" if overlap >= 5 else "Maybe"
-                    updates.append((job["_row_index"], fallback, "Unknown", "N/A", "N/A", "No parse" if fallback == "Maybe" else "Parse failed; 5+ overlap"))
-                    evaluated_match_types.append(fallback)
-                    print(f"    -> {job.get('Role Title')}: {fallback} (no parse)")
-                self.save_batch_if_needed(updates, worksheet, batch_size=sheet_batch_size)
+                    parsed = self.parse_evaluation(block)
+                    match_type, rec, h1b, loc, missing, reason, salary, tech, score = parsed
+                    
+                    # FALLBACK CALCULATION: If LLM failed score or was 0, use metrics
+                    if score == 0:
+                        jd_link = job.get("Job Link") or ""
+                        current_jd = self.sheets_client.get_jd_for_url(jd_link) or ""
+                        score = self._compute_fallback_score(current_jd, job.get("Location") or "")
 
-        if updates:
-            print("\nUpdating remaining evaluations to Google Sheets...")
-            self.sheets_client.update_evaluated_jobs(worksheet, updates)
+                    # Tiered Verdict Mapping (single source of truth)
+                    match_type = score_to_verdict(score)
+
+                    # Update all caches
+                    eval_results = {
+                        "h1b": h1b,
+                        "missing_skills": missing,
+                        "salary": salary,
+                        "tech_stack": tech,
+                        "recommended_resume": rec,
+                        "score": score
+                    }
+                    self.update_sponsorship_cache(job.get("Company"), h1b)
+                    self.update_intelligence_caches(job, eval_results)
+                    
+                    updates_by_ws[target_ws].append((job["_row_index"], match_type, rec, h1b, loc, missing, score))
+                    evaluated_match_types.append(match_type)
+                    print(f"    -> {job.get('Role Title')}: {match_type} ({score})")
+                else:
+                    fallback = "❌ No"
+                    updates_by_ws[target_ws].append((job["_row_index"], fallback, "Unknown", "N/A", "N/A", "Parse failed", 0))
+                    evaluated_match_types.append(fallback)
+
+        # 3. Final Batch Save
+        if updates_by_ws:
+            print("\nSaving all evaluations to Google Sheets...")
+            for ws, batch in updates_by_ws.items():
+                if batch:
+                    print(f"  Updating {len(batch)} jobs in '{ws.title}'...")
+                    self.sheets_client.update_evaluated_jobs(ws, batch)
+
+        # 4. Save and Summarize
+        self.save_all_caches()
+
+        # Calibration summary: distribution and Maybe > 80% warning
 
         # Calibration summary: distribution and Maybe > 80% warning
         if evaluated_match_types:

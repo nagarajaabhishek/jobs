@@ -12,11 +12,14 @@ sourcing:
     - "Strategy Operations"
     - "GTM Manager"
   locations:
-    - "Remote"
-    - "United States"
-    - "Dubai"
-  results_wanted: 50
+    "United States": 80
+    "Dubai": 20
+    "Remote": 50
   max_workers: 4
+  
+  # AI-Enhanced Sourcing
+  expand_ai_queries: true  # Use LLM to brainstorm search terms
+  use_ai_filter: true      # Use LLM to drop non-PM/PO/BA roles before sheet
   # ATS job boards (add company slugs; 404s are skipped)
   ats_boards:
     greenhouse: [canva, discord, figma]
@@ -24,6 +27,15 @@ sourcing:
     ashby: [ashby, notion, figma, linear, vercel, ramp]
 
 evaluation:
+  # Provider: 'openrouter' (Unified Cloud), 'hybrid' (OpenRouter -> Gemini -> local), 'gemini' (Direct API), or 'ollama' (Local only)
+  provider: hybrid
+  
+  # OpenRouter model (e.g. google/gemma-3-27b-it:free, deepseek/deepseek-r1)
+  openrouter_model: google/gemma-3-27b-it:free
+
+  # Ollama model used for local/fallback evaluation
+  ollama_model: qwen2.5:7b
+  
   batch_eval_size: 4
   sheet_batch_size: 25
   limit: 300

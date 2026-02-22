@@ -36,6 +36,10 @@ For detailed agent instructions, see [.agent/workflows/job_pipeline.md](.agent/w
 - **Environment**: Copy `.env.example` to `.env`. Optional: `OLLAMA_HOST`, `PROFILE_DIR` or `MASTER_PROFILE_PATH`, `PIPELINE_CONFIG`, `GEMINI_API_KEY` (for sponsorship agent).
 - **Pipeline**: Edit `config/pipeline.yaml` to change queries, locations, `results_wanted`, `max_workers`, and evaluation batch sizes. Override file path with `PIPELINE_CONFIG`.
 
+## Job descriptions (JD)
+- **Not in Sheets**: Full JDs are not stored in Google Sheets (column is empty).
+- **Local cache**: When jobs are added, their descriptions are saved to `config/jd_cache.json` (keyed by canonical URL). The evaluator reads from this cache so evaluation still uses the full JD. Override path with `JD_CACHE_PATH` in `.env` if needed.
+
 ## Duplicate & already-applied handling
 - **Canonical URL**: Job links are normalized (strip UTM/ref params, fragment, trailing slash) so the same role from two sources is treated as one. Duplicates are not added.
 - **Applied? (Y/N)**: Mark **Y** in the sheet when you apply. Those jobs are never re-added or re-evaluated in future runs.

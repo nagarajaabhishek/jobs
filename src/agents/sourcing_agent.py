@@ -12,6 +12,7 @@ from src.scrapers.ats_scraper import ATS_Scraper
 from src.scrapers.remotive_scraper import RemotiveScraper
 from src.scrapers.remoteok_scraper import RemoteOKScraper
 from src.scrapers.ashby_scraper import AshbyScraper
+from src.core.llm_router import LLMRouter
 
 import pandas as pd
 
@@ -34,6 +35,7 @@ class SourcingAgent:
         self.remotive_scraper = RemotiveScraper(limit=100)
         self.remoteok_scraper = RemoteOKScraper(limit=80)
         self.ashby_scraper = AshbyScraper(boards=ats.get("ashby"))
+        self.llm = LLMRouter()
 
     def scrape_community_sources_once(self, queries=None):
         """
@@ -97,16 +99,23 @@ class SourcingAgent:
             logging.warning(f"JobSpy failed for '{query}' in '{location}': {e}")
             return []
 
-    def scrape_jobspy_parallel(self, queries, locations, results_wanted=50, max_workers=4):
+    def scrape_jobspy_parallel(self, queries, locations, max_workers=4):
         """
-        Run JobSpy for all (query, location) pairs in parallel. Saves each batch on the main thread.
+        Run JobSpy for all (query, location) pairs in parallel.
+        locations can be a list or a dict {location: results_wanted}.
         """
-        tasks = [(q, loc) for q in queries for loc in locations]
+        if isinstance(locations, list):
+            # Fallback for old list format
+            tasks = [(q, loc, 50) for q in queries for loc in locations]
+        else:
+            # New dict format: {location: target}
+            tasks = [(q, loc, target) for q in queries for loc, target in locations.items()]
+
         total = 0
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
             future_to_task = {
-                executor.submit(self._jobspy_one, q, loc, results_wanted): (q, loc)
-                for q, loc in tasks
+                executor.submit(self._jobspy_one, q, loc, target): (q, loc)
+                for q, loc, target in tasks
             }
             for future in as_completed(future_to_task):
                 q, loc = future_to_task[future]
@@ -121,23 +130,79 @@ class SourcingAgent:
         print(f"JobSpy parallel run complete. Total jobs saved from JobSpy: {total}.")
         return total
 
-    def scrape(self, queries=["Product", "Analytics", "Operations", "Strategy", "Data", "Manager", "Scrum"], locations=["Remote", "United States", "Dubai"], results_wanted=50, include_community_sources=True):
+    def expand_queries(self, base_roles=["Product Manager", "Business Analyst", "Scrum Master"]):
+        """
+        AI Query Expansion: uses a reasoning model to find related job titles 
+        that might be missed by static keyword searches.
+        """
+        print(f"--- AI Query Expansion for: {base_roles} ---")
+        system_prompt = """
+        You are a recruitment strategist. Given a list of core job roles, provide 10-15 short, 
+        effective search phrases used in LinkedIn/Indeed job titles for these roles.
+        Focus on variations, seniority levels, and Niche titles.
+        
+        Output format: A comma-separated list of titles ONLY. No numbering or extra text.
+        """
+        user_prompt = f"Core roles: {base_roles}"
+        
+        text, engine = self.llm.generate_content(system_prompt, user_prompt)
+        if engine == "FAILED":
+            return base_roles
+            
+        expanded = [t.strip() for t in text.split(",") if t.strip()]
+        print(f"Expanded queries ({engine}): {expanded}")
+        return expanded
+
+    def tag_job(self, job):
+        """
+        Lightweight Tagging: extracts metadata (Work style, Seniority, Industry) 
+        from the job title and snippet.
+        """
+        title = job.get("title", "")
+        desc = job.get("description", "")[:400]
+        
+        system_prompt = """
+        Analyze the job title and snippet. Extract:
+        1. Work Style: Remote, Hybrid, or Onsite
+        2. Seniority: Intern, Junior, Mid, Senior, Lead, or Director
+        3. Industry: Tech, Finance, Health, Retail, or Other
+        
+        Output EXACTLY: Style: [Style] | Seniority: [Seniority] | Industry: [Industry]
+        """
+        user_prompt = f"Job: {title}\nSnippet: {desc}"
+        
+        text, engine = self.llm.generate_content(system_prompt, user_prompt)
+        if engine == "FAILED":
+            return "Tags: Unknown"
+        return text.strip()
+
+    def scrape(self, queries=["Product", "Analytics", "Operations", "Strategy", "Data", "Manager", "Scrum"], locations=None, results_wanted=50, include_community_sources=True, expand_ai_queries=False):
         """
         Scrapes jobs from JobSpy and optionally from Community/Jobright/Arbeitnow/ATS.
-        Set include_community_sources=False when calling in a loop; run scrape_community_sources_once() once before the loop instead.
         """
+        if expand_ai_queries:
+            queries = self.expand_queries(queries)
+
+        if locations is None:
+            locations = {"Remote": 50, "United States": 50, "Dubai": 50}
+            
         all_jobs = []
 
         # 1. Scrape with JobSpy
         for query in queries:
-            for location in locations:
-                print(f"Scraping JobSpy for '{query}' in '{location}'...")
+            if isinstance(locations, dict):
+                loc_items = locations.items()
+            else:
+                loc_items = [(loc, results_wanted) for loc in locations]
+
+            for location, target in loc_items:
+                print(f"Scraping JobSpy for '{query}' in '{location}' (target: {target})...")
                 try:
                     jobs = scrape_jobs(
                         site_name=["linkedin", "indeed", "glassdoor", "google", "zip_recruiter"],
                         search_term=query,
                         location=location,
-                        results_wanted=results_wanted,
+                        results_wanted=target,
                         hours_old=72, # 3 days back
                         country_indeed='USA'
                     )
@@ -190,22 +255,71 @@ class SourcingAgent:
         print(f"Filtered down to {len(filtered_jobs)} jobs from {len(jobs)}.")
         return filtered_jobs
 
-    def normalize_and_save(self, raw_jobs):
+    def ai_sniff_relevance(self, job):
         """
-        Normalizes job data and saves to Google Sheets.
+        Optional AI pre-filter: uses a fast/cheap LLM via OpenRouter to 'sniff' if a job is actually 
+        within our target role families (PM, PO, BA, SM, GTM).
+        Returns (True, "Role Matched") or (False, Reason).
         """
-        # First filter the jobs
+        title = job.get("title", "")
+        desc = job.get("description", "")[:500] # Snippet for speed/cost
+        
+        system_prompt = """
+        You are a recruitment classifier. Analyze the Job Title and Snippet.
+        Is this a role for a Product Manager, Project Manager, Program Manager, Business Analyst, 
+        Product Owner, Scrum Master, or GTM/Strategy Operations?
+        
+        Answer ONLY: YES or NO.
+        """
+        user_prompt = f"Title: {title}\nSnippet: {desc}"
+        
+        # We can force a cheap model for this in the future, for now uses router default
+        text, engine = self.llm.generate_content(system_prompt, user_prompt)
+        
+        if engine == "FAILED":
+            return True, "LLM failed - allowing through"
+            
+        result = text.strip().upper()
+        if "YES" in result:
+            return True, f"AI confirmed relevance ({engine})"
+        return False, f"AI sniffed mismatch ({engine})"
+
+    def normalize_and_save(self, raw_jobs, use_ai_filter=False):
+        """
+        Normalizes job data, applies filters, and saves to Google Sheets.
+        """
+        # 1. Static Rule Filter
         filtered_raw_jobs = self.filter_jobs(raw_jobs)
         
+        # 2. AI Pre-filter (Optional)
+        if use_ai_filter and filtered_raw_jobs:
+            print(f"--- AI Sniffing {len(filtered_raw_jobs)} jobs for relevance ---")
+            ai_passed = []
+            for job in filtered_raw_jobs:
+                passed, reason = self.ai_sniff_relevance(job)
+                if passed:
+                    ai_passed.append(job)
+                else:
+                    logging.info(f"AI Filtered: {reason} [{job.get('title', '')}]")
+            print(f"AI Sniffing complete. {len(ai_passed)} passed.")
+            filtered_raw_jobs = ai_passed
+
+        # 3. Final Normalize & Tagging
         clean_jobs = []
         for job in filtered_raw_jobs:
+            # Optional: Add tags to the description/metadata if needed, 
+            # Or just store them in a way the evaluator can see.
+            # For now, we'll just log them or add to a side-car field.
+            tags = self.tag_job(job)
+            
             clean_job = {
-                'title': job.get('title'),
-                'company': job.get('company'),
-                'url': job.get('url') or job.get('job_url'), # Handle different scraper formats
-                'location': job.get('location'),
-                'source': job.get('source') or job.get('site'), # Handle different scraper formats
-                'description': job.get('description', '')
+                "title": job.get("title"),
+                "company": job.get("company"),
+                "url": job.get("url") or job.get("job_url"),
+                "location": job.get("location"),
+                "source": job.get("source") or job.get("site"),
+                "description": job.get("description", ""),
+                "tags": tags # NEW field for Sheets
             }
             clean_jobs.append(clean_job)
             

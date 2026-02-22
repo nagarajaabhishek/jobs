@@ -9,8 +9,11 @@ _default = {
             "Business Analyst", "Product Owner", "Scrum Master",
             "Strategy Operations", "GTM Manager",
         ],
-        "locations": ["Remote", "United States", "Dubai"],
-        "results_wanted": 50,
+        "locations": {
+            "United States": 80,
+            "Dubai": 20,
+            "Remote": 50
+        },
         "max_workers": 4,
         "ats_boards": {
             "greenhouse": ["canva", "discord", "figma"],
@@ -19,6 +22,7 @@ _default = {
         },
     },
     "evaluation": {
+        "ollama_model": "llama3.2",
         "batch_eval_size": 4,
         "sheet_batch_size": 25,
         "limit": 300,

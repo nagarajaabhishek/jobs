@@ -13,6 +13,9 @@ venv/
 credentials.json
 client_secret.json
 
+# Local JD cache (used for evaluation only; not in Sheets)
+config/jd_cache.json
+
 # IDE
 .idea/
 .vscode/

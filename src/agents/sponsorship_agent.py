@@ -4,49 +4,18 @@ import time
 import requests
 import gspread
 from bs4 import BeautifulSoup
-from google import genai
-from google.genai import types
+from src.core.llm_router import LLMRouter
 from src.core.google_sheets_client import GoogleSheetsClient
 from dotenv import load_dotenv
 
 load_dotenv()
 
 
-class _GeminiLLMWrapper:
-    """Wrapper so SponsorshipAgent can use the same generate_content(system_prompt, user_prompt) interface."""
-
-    def __init__(self, client, model_name):
-        self.client = client
-        self.model_name = model_name
-
-    def generate_content(self, system_prompt: str, user_prompt: str) -> tuple[str, str]:
-        try:
-            response = self.client.models.generate_content(
-                model=self.model_name,
-                contents=user_prompt,
-                config=types.GenerateContentConfig(
-                    system_instruction=system_prompt,
-                ),
-            )
-            if response and response.text:
-                return response.text.strip(), "GEMINI"
-            return "", "FAILED"
-        except Exception as e:
-            print(f"  -> Gemini sponsorship check failed: {e}")
-            return "", "FAILED"
-
-
 class SponsorshipAgent:
     def __init__(self):
-        self.api_key = os.environ.get("GEMINI_API_KEY")
-        if not self.api_key:
-            print("WARNING: GEMINI_API_KEY environment variable not found in .env file.")
-            exit(1)
-
-        self.client = genai.Client(api_key=self.api_key)
-        self.llm = _GeminiLLMWrapper(self.client, "gemini-2.0-flash")
+        # We now use the unified LLMRouter (OpenRouter -> Gemini -> Ollama)
+        self.llm = LLMRouter()
         self.sheets_client = GoogleSheetsClient()
-        self.model_name = "gemini-2.0-flash"
         
         # Strict prompt to evaluate ONLY visa sponsorship metrics
         self.system_prompt = """

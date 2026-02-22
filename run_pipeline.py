@@ -24,19 +24,29 @@ def run_full_pipeline():
     sourcing_agent = SourcingAgent(client)
     wf = WorkflowRegistry()
 
+    # AI Sourcing Flags
+    expand_ai = cfg.get("expand_ai_queries", False)
+    use_ai_filter = cfg.get("use_ai_filter", False)
+
     # Step 1: Prerequisites Check (Implicit)
     wf.log_step("job_pipeline.md", 1)
 
     # Step 2: Run Sourcing & Evaluation
     wf.log_step("job_pipeline.md", 2)
 
+    # Expand queries if enabled
+    if expand_ai:
+        queries = sourcing_agent.expand_queries(queries)
+
     sourcing_agent.scrape_community_sources_once(queries=queries)
 
     print("\n--- JobSpy (parallel) ---")
-    sourcing_agent.scrape_jobspy_parallel(
-        queries=queries, locations=locations,
-        results_wanted=results_wanted, max_workers=max_workers,
+    raw_jobs = sourcing_agent.scrape_jobspy_parallel(
+        queries=queries, locations=locations, max_workers=max_workers,
     )
+    
+    # Custom call to normalize_and_save with AI filter
+    sourcing_agent.normalize_and_save(raw_jobs, use_ai_filter=use_ai_filter)
 
     print("\n--- Evaluation Phase (single pass) ---")
     evaluator = JobEvaluator()
