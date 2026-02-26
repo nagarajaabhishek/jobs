@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { BrainCircuit, Briefcase, Network, ArrowRight, CheckCircle2, FileText, Target, Map, Database, GitBranch, GraduationCap } from 'lucide-react';
-import CompetitiveTable from '../components/CompetitiveTable';
+import DetailedCompetitiveMatrix from '../components/DetailedCompetitiveMatrix';
 import FAQ from '../components/FAQ';
 import ArchitectureSection from '../components/ArchitectureSection';
 
@@ -23,19 +23,30 @@ export default function StudentLanding() {
                         <div className="student-tag">
                             <CheckCircle2 size={16} /> Beta Exclusive: UT System
                         </div>
-                        <h1>Stop Guessing.<br /><span className="text-gradient">Start Interviewing.</span></h1>
-                        <p>The only job feed that instantly tells you if you're a fit based on your syllabus, projects, and hackathons. <strong>JobsProof.com</strong> validates your background so you only apply to high-match roles. Zero text copying required.</p>
+                        <h1 style={{ fontSize: '3rem', whiteSpace: 'nowrap' }}>Stop Guessing. <span className="text-gradient">Start Interviewing.</span></h1>
+
+                        <div className="problem-statement" style={{ background: 'rgba(245, 158, 11, 0.05)', borderLeft: '3px solid var(--warning)', padding: '12px 16px', borderRadius: '0 8px 8px 0', marginBottom: '20px' }}>
+                            <strong style={{ color: 'var(--warning)', display: 'block', marginBottom: '4px', fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>The Problem</strong>
+                            <span style={{ color: 'var(--text-secondary)', fontSize: '0.95rem', lineHeight: '1.4' }}>Blindly firing generic resumes into the ATS black hole alongside thousands of applicants, only to get ghosted.</span>
+                        </div>
+
+                        <p>Don't just apply anywhere. Target the right roles and tailor your resume for success. <strong>JobsProof.com</strong> validates your background so you only apply to high-match roles.</p>
 
                         <div className="cta-group">
                             <button className="btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                 View Your Daily Feed <ArrowRight size={18} />
                             </button>
-                            <button className="btn-secondary">Watch Demo</button>
+                            <button
+                                className="btn-secondary"
+                                onClick={() => document.querySelector('.engine-section')?.scrollIntoView({ behavior: 'smooth' })}
+                            >
+                                Architecture Engine
+                            </button>
                         </div>
                     </div>
 
                     {/* Right: The Product UI Mockup */}
-                    <div className="app-mockup animate-fade-up delay-2">
+                    <div className="app-mockup animate-fade-up delay-2" style={{ transform: 'perspective(1000px) rotateY(-5deg) scale(1.1)', transformOrigin: 'right center' }}>
                         <div className="mockup-header">
                             <div className="dot dot-r"></div>
                             <div className="dot dot-y"></div>
@@ -158,8 +169,8 @@ export default function StudentLanding() {
                             <div className="feature-icon">
                                 <Briefcase size={24} />
                             </div>
-                            <h3>1. Centralized Feed</h3>
-                            <p>Stop hunting across 5 different job boards. We scrape target company career pages every morning. You see the top 100 open roles in one place.</p>
+                            <h3>1. Centralized Multi-Source Feed</h3>
+                            <p>Stop hunting across isolated job boards. We aggregate and validate open roles from LinkedIn, Indeed, Jobright, and direct ATS pages (Greenhouse, Workday, Lever)—with advanced Dice MCP integration coming soon. You see the top matched roles in one place.</p>
                         </div>
 
                         <div className="feature-card animate-fade-up delay-2">
@@ -185,75 +196,116 @@ export default function StudentLanding() {
             <section className="competitive-section">
                 <div className="container">
                     <div className="section-header text-center animate-fade-up">
-                        <h2>The Broken Recruitment Pipeline</h2>
-                        <p className="subtitle" style={{ maxWidth: '700px', margin: '0 auto' }}>Students are forced to string together multiple fragmented tools just to get an interview. We combined every phase into one seamless platform.</p>
+                        <h2>The 5-Phase Automation Architecture</h2>
+                        <p className="subtitle" style={{ maxWidth: '700px', margin: '0 auto' }}>Students are forced to string together multiple fragmented tools just to get an interview. We combined every phase into one seamless platform powered by agentic intelligence.</p>
                     </div>
 
-                    <div className="phase-grid">
-                        {/* Phase 1: Sourcing */}
+                    <div className="phase-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))' }}>
+                        {/* Phase 1: Abstraction */}
                         <div className="phase-card animate-fade-up delay-1">
                             <div className="phase-header">
                                 <span className="phase-number">1</span>
-                                <h3>Sourcing Roles</h3>
+                                <h3>Master Context Assembly</h3>
                             </div>
                             <div className="phase-body">
                                 <div className="status-quo">
                                     <div className="way-label">The Old Way</div>
-                                    <div className="way-content">Endless scrolling through noisy feeds, guessing if a company hires from your major.</div>
+                                    <div className="way-content">Trying to squeeze your entire life into a 1-page PDF and losing all the rich details of what you actually built.</div>
                                     <div className="tool-tags">
-                                        <span className="tool-tag">LinkedIn</span>
-                                        <span className="tool-tag">Indeed</span>
-                                        <span className="tool-tag">Handshake</span>
+                                        <span className="tool-tag">Word</span>
+                                        <span className="tool-tag">1-Page PDF</span>
                                     </div>
                                 </div>
                                 <div className="our-way">
-                                    <div className="way-label">JobsProof.com</div>
-                                    <div className="way-content">A curated daily feed of the top 100 roles specifically targeting your university.</div>
+                                    <div className="way-label">JobsProof AI</div>
+                                    <div className="way-content">We ingest your <strong>entire context</strong>—school syllabi, projects, and hackathons—into a massive profile used to dynamically build resumes.</div>
                                 </div>
                             </div>
                         </div>
 
-                        {/* Phase 2: Evaluation */}
+                        {/* Phase 2: Sourcing */}
                         <div className="phase-card animate-fade-up delay-2">
                             <div className="phase-header">
                                 <span className="phase-number">2</span>
-                                <h3>Evaluating Fit</h3>
+                                <h3>Signal Filtering</h3>
                             </div>
                             <div className="phase-body">
                                 <div className="status-quo">
                                     <div className="way-label">The Old Way</div>
-                                    <div className="way-content">Blindly applying to roles and hoping your generic resume passes the ATS parser.</div>
+                                    <div className="way-content">Endless scrolling through noisy feeds, guessing if a company sponsors visas or hires juniors.</div>
                                     <div className="tool-tags">
-                                        <span className="tool-tag">Manual Review</span>
-                                        <span className="tool-tag">Guesswork</span>
+                                        <span className="tool-tag">LinkedIn</span>
+                                        <span className="tool-tag">Indeed</span>
                                     </div>
                                 </div>
                                 <div className="our-way">
-                                    <div className="way-label">JobsProof.com</div>
-                                    <div className="way-content">Instant % match against all your ATS-optimized profiles based on verified syllabi, hackathons, and GitHub projects.</div>
+                                    <div className="way-label">JobsProof AI</div>
+                                    <div className="way-content">An intelligent "Sniffer" pre-screens thousands of jobs, destroying irrelevant roles before you ever see them.</div>
                                 </div>
                             </div>
                         </div>
 
-                        {/* Phase 3: Tailoring */}
+                        {/* Phase 3: Evaluation */}
                         <div className="phase-card animate-fade-up delay-3">
                             <div className="phase-header">
                                 <span className="phase-number">3</span>
-                                <h3>Tailoring Resumes</h3>
+                                <h3>Context-Aware Evaluation</h3>
                             </div>
                             <div className="phase-body">
                                 <div className="status-quo">
                                     <div className="way-label">The Old Way</div>
-                                    <div className="way-content">Spending hours tweaking keywords and asking AI to rewrite bullets for every app.</div>
+                                    <div className="way-content">Blindly applying and hoping your generic resume passes the ATS keyword parser.</div>
                                     <div className="tool-tags">
-                                        <span className="tool-tag">ChatGPT</span>
-                                        <span className="tool-tag">Teal</span>
-                                        <span className="tool-tag">Word</span>
+                                        <span className="tool-tag">Guesswork</span>
+                                        <span className="tool-tag">Rejection</span>
                                     </div>
                                 </div>
                                 <div className="our-way">
-                                    <div className="way-label">JobsProof</div>
-                                    <div className="way-content">One-click deployment using the highest-scoring pre-existing resume profile.</div>
+                                    <div className="way-label">JobsProof AI</div>
+                                    <div className="way-content">We analyze sourced JDs against your <strong>full context</strong>, scoring the exact match and proving why your projects fit the role perfectly.</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Phase 4: Analytics */}
+                        <div className="phase-card animate-fade-up delay-4">
+                            <div className="phase-header">
+                                <span className="phase-number">4</span>
+                                <h3>Market Analytics</h3>
+                            </div>
+                            <div className="phase-body">
+                                <div className="status-quo">
+                                    <div className="way-label">The Old Way</div>
+                                    <div className="way-content">Not knowing why you're getting rejected or what skills employers actually want today.</div>
+                                    <div className="tool-tags">
+                                        <span className="tool-tag">Blind Spots</span>
+                                        <span className="tool-tag">Stagnation</span>
+                                    </div>
+                                </div>
+                                <div className="our-way">
+                                    <div className="way-label">JobsProof AI</div>
+                                    <div className="way-content">Our system learns continuously, harvesting skill gaps and verified H1B sponsor lists to improve daily.</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Phase 5: Execution */}
+                        <div className="phase-card animate-fade-up delay-5">
+                            <div className="phase-header">
+                                <span className="phase-number">5</span>
+                                <h3>Automated Execution</h3>
+                            </div>
+                            <div className="phase-body">
+                                <div className="status-quo">
+                                    <div className="way-label">The Old Way</div>
+                                    <div className="way-content">Spending 20 minutes copying and pasting the same information into Workday forms.</div>
+                                    <div className="tool-tags">
+                                        <span className="tool-tag">Manual Data Entry</span>
+                                    </div>
+                                </div>
+                                <div className="our-way">
+                                    <div className="way-label">JobsProof AI</div>
+                                    <div className="way-content">Once validated, jobs are queued for autonomous browser agents that execute applications while you sleep.</div>
                                 </div>
                             </div>
                         </div>
@@ -261,17 +313,8 @@ export default function StudentLanding() {
                 </div>
             </section>
 
-            {/* Feature-Based Competitive Analysis */}
-            <CompetitiveTable
-                title="Why We Win"
-                subtitle="We aren't just another job board. We are a targeted deployment system."
-                competitorName="Standard Job Boards"
-                rows={[
-                    { feature: 'Matching Logic', us: 'Verified Proof of Work (Syllabus, Projects, Hackathons)', them: 'Keyword Spamming' },
-                    { feature: 'Experience Credit', us: 'Syllabus-as-Experience (Bypass 3yr req)', them: 'Arbitrary "Years of Exp"' },
-                    { feature: 'Transparency', us: 'Verified Visa & Direct ATS Timestamps', them: 'Ghost Jobs & Blind Filters' }
-                ]}
-            />
+            {/* Detailed Competitive Matrix */}
+            <DetailedCompetitiveMatrix />
 
             {/* Alumni Network Section */}
             <section className="alumni-section">
@@ -354,8 +397,8 @@ export default function StudentLanding() {
                                 <div className="engine-step">
                                     <div className="step-icon"><Database size={20} /></div>
                                     <div className="step-content">
-                                        <h4>Direct ATS Ingestion</h4>
-                                        <p>We bypass LinkedIn "ghost jobs" by directly scraping validated openings from Greenhouse, Workday, and Lever.</p>
+                                        <h4>Direct ATS & Multi-Board Ingestion</h4>
+                                        <p>We bypass "ghost jobs" by validating openings across LinkedIn, Indeed, and Jobright, alongside direct ATS feeds from Greenhouse, Workday, and Lever. (Dice MCP integration planned for automated sourcing and application).</p>
                                     </div>
                                 </div>
 
