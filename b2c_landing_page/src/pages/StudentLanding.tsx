@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { BrainCircuit, Briefcase, Network, ArrowRight, CheckCircle2, FileText, Target, Map, Database, GitBranch, GraduationCap } from 'lucide-react';
+import { BrainCircuit, Briefcase, Network, ArrowRight, CheckCircle2, FileText, Target, Map, Database, GitBranch, GraduationCap, Github } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import DetailedCompetitiveMatrix from '../components/DetailedCompetitiveMatrix';
 import FAQ from '../components/FAQ';
 import ArchitectureSection from '../components/ArchitectureSection';
@@ -35,16 +36,21 @@ export default function StudentLanding() {
 
                         <p>Don't just apply anywhere. Target the right roles and tailor your resume for success. <strong>JobsProof.com</strong> validates your background so you only apply to high-match roles.</p>
 
-                        <div className="cta-group">
-                            <button className="btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                View Your Daily Feed <ArrowRight size={18} />
-                            </button>
-                            <button
-                                className="btn-secondary"
-                                onClick={() => document.querySelector('.engine-section')?.scrollIntoView({ behavior: 'smooth' })}
-                            >
-                                Architecture Engine
-                            </button>
+                        <div className="cta-group" style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
+                            <Link to="/architecture" style={{ textDecoration: 'none' }}>
+                                <button
+                                    className="btn-primary"
+                                    style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
+                                >
+                                    Architecture Engine <ArrowRight size={18} />
+                                </button>
+                            </Link>
+                            <a href="https://github.com/nagarajaabhishek/jobs" target="_blank" rel="noopener noreferrer" className="btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: '8px', textDecoration: 'none' }}>
+                                <Github size={18} /> Job Automation
+                            </a>
+                            <a href="https://github.com/nagarajaabhishek/resume_agent" target="_blank" rel="noopener noreferrer" className="btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: '8px', textDecoration: 'none' }}>
+                                <Github size={18} /> Resume Agent
+                            </a>
                         </div>
                     </div>
 
@@ -115,12 +121,17 @@ export default function StudentLanding() {
                                         </div>
                                     </div>
 
-                                    <div className="action-bar">
+                                    <div className="action-bar" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                         <div className="routing-advice">
                                             <BrainCircuit size={16} color="var(--accent-primary)" />
-                                            <span>Route: <strong>Use role_ba.yaml</strong> via IE 5301</span>
+                                            <span>Route: <strong>Use role_ba.yaml</strong></span>
                                         </div>
-                                        <button className="mock-btn">Apply Now</button>
+                                        <div style={{ display: 'flex', gap: '8px' }}>
+                                            <button className="btn-secondary" style={{ padding: '6px 12px', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                                <FileText size={14} /> Generate .pdf
+                                            </button>
+                                            <button className="mock-btn">Auto-Apply</button>
+                                        </div>
                                     </div>
                                 </div>
 
@@ -186,9 +197,17 @@ export default function StudentLanding() {
 
                         <div className="feature-card animate-fade-up delay-3">
                             <div className="feature-icon">
+                                <FileText size={24} />
+                            </div>
+                            <h3>3. AI Resume Engineering</h3>
+                            <p>We decouple your raw data from design. Our LaTeX Engine dynamically generates a pixel-perfect, ATS-optimized PDF resume tailored specifically to the job you are looking at—enforcing the Google XYZ formula for every bullet point.</p>
+                        </div>
+
+                        <div className="feature-card animate-fade-up delay-4">
+                            <div className="feature-icon">
                                 <Network size={24} />
                             </div>
-                            <h3>3. Warm Alumni Sourcing</h3>
+                            <h3>4. Warm Alumni Sourcing</h3>
                             <p>You aren't competing against the internet. We specifically source roles from companies with a proven track record of hiring alumni from exactly your university and program.</p>
                         </div>
                     </div>
@@ -292,23 +311,23 @@ export default function StudentLanding() {
                             </div>
                         </div>
 
-                        {/* Phase 5: Execution */}
+                        {/* Phase 5: Artifact Execution */}
                         <div className="phase-card animate-fade-up delay-5">
                             <div className="phase-header">
                                 <span className="phase-number">5</span>
-                                <h3>Automated Execution</h3>
+                                <h3>Artifact Execution</h3>
                             </div>
                             <div className="phase-body">
                                 <div className="status-quo">
                                     <div className="way-label">The Old Way</div>
-                                    <div className="way-content">Spending 20 minutes copying and pasting the same information into Workday forms.</div>
+                                    <div className="way-content">Submitting the exact same vanilla Word Document to every single job, regardless of the unique requirements.</div>
                                     <div className="tool-tags">
-                                        <span className="tool-tag">Manual Data Entry</span>
+                                        <span className="tool-tag">Generic PDFs</span>
                                     </div>
                                 </div>
                                 <div className="our-way">
                                     <div className="way-label">JobsProof AI</div>
-                                    <div className="way-content">Once validated, jobs are queued for autonomous browser agents that execute applications while you sleep.</div>
+                                    <div className="way-content">We trigger a <strong>Python LaTeX Engine</strong> that algorithmically compiles a bespoke, 90%+ ATS-optimized resume injected with the exact missing keywords.</div>
                                 </div>
                             </div>
                         </div>

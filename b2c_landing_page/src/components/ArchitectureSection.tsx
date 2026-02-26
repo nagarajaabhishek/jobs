@@ -1,4 +1,4 @@
-import { Network, Database, BrainCircuit, ArrowRight } from 'lucide-react';
+import { Network, Database, BrainCircuit, ArrowRight, Github } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 export default function ArchitectureSection() {
@@ -55,6 +55,25 @@ export default function ArchitectureSection() {
                                 View Full Architecture <ArrowRight size={16} />
                             </button>
                         </Link>
+                    </div>
+
+                    {/* Open Source Card */}
+                    <div className="feature-card animate-fade-up delay-4" style={{ background: 'var(--bg-secondary)', border: '1px solid rgba(255, 255, 255, 0.2)' }}>
+                        <div>
+                            <div className="feature-icon" style={{ background: 'rgba(255, 255, 255, 0.1)' }}>
+                                <Github size={24} color="var(--text-primary)" />
+                            </div>
+                            <h3 style={{ fontSize: '1.2rem', marginBottom: '12px' }}>Open Source Initiative</h3>
+                            <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem', marginBottom: '16px' }}>Our core orchestration engines and ATS document parsers are fully open-source and available on GitHub for transparency and community contribution.</p>
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: 'auto' }}>
+                            <a href="https://github.com/nagarajaabhishek/jobs" target="_blank" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-primary)', fontSize: '0.95rem', textDecoration: 'none', background: 'var(--bg-card)', padding: '10px 12px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+                                <Github size={18} /> Job Automation Pipeline
+                            </a>
+                            <a href="https://github.com/nagarajaabhishek/resume_agent" target="_blank" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-primary)', fontSize: '0.95rem', textDecoration: 'none', background: 'var(--bg-card)', padding: '10px 12px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+                                <Github size={18} /> Resume Engine Agent
+                            </a>
+                        </div>
                     </div>
 
                 </div>

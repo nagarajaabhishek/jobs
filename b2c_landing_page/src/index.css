@@ -307,7 +307,7 @@ h3 {
 
 .hero-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 4fr 6fr;
   gap: 60px;
   align-items: center;
 }
@@ -430,6 +430,8 @@ h3 {
   padding: 20px;
   border: 1px solid var(--border-color);
   margin-bottom: 16px;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .job-header {
@@ -573,8 +575,17 @@ h3 {
     text-align: center;
   }
 
+  .hero-content {
+    max-width: 100% !important;
+  }
+
   .hero-content h1 {
-    font-size: 3rem;
+    font-size: 2.5rem !important;
+    white-space: normal !important;
+  }
+
+  .hero-content h1 span {
+    white-space: normal !important;
   }
 
   .hero-content p {
@@ -590,8 +601,24 @@ h3 {
   }
 
   .app-mockup {
-    transform: none;
+    transform: none !important;
     margin-top: 40px;
+    min-width: 100% !important;
+    max-width: 100% !important;
+    width: 100% !important;
+  }
+
+  .mockup-body {
+    flex-direction: column;
+    height: auto;
+  }
+
+  .mockup-sidebar {
+    width: 100%;
+    flex-direction: row;
+    border-right: none;
+    border-bottom: 1px solid var(--border-color);
+    overflow-x: auto;
   }
 }
 

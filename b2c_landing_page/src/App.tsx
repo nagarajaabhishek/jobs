@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link, useLocation } from 'react-router-dom';
-import { BrainCircuit, Menu, X } from 'lucide-react';
+import { BrainCircuit, Menu, X, Github } from 'lucide-react';
 import StudentLanding from './pages/StudentLanding';
 import UniversityLanding from './pages/UniversityLanding';
 import Architecture from './pages/Architecture';
@@ -24,10 +24,16 @@ function Navigation() {
 
         {/* Desktop Links */}
         <div className="nav-links-desktop">
-          <Link to="/" style={{ color: !isUni && location.pathname !== '/architecture' ? 'white' : 'var(--text-secondary)' }} className="hover-text-white transition-colors">For Students</Link>
+          <Link to="/" style={{ color: !isUni ? 'white' : 'var(--text-secondary)' }} className="hover-text-white transition-colors">For Students</Link>
           <Link to="/for-universities" style={{ color: isUni ? 'white' : 'var(--text-secondary)' }} className="hover-text-white transition-colors">For Universities</Link>
-          <Link to="/architecture" style={{ color: location.pathname === '/architecture' ? 'white' : 'var(--text-secondary)' }} className="hover-text-white transition-colors">Architecture Engine</Link>
-          <button className="btn-secondary" style={{ padding: '8px 16px' }}>Sign In</button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginLeft: '12px', borderLeft: '1px solid var(--border-color)', paddingLeft: '24px' }}>
+            <a href="https://github.com/nagarajaabhishek/jobs" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--text-secondary)', transition: 'color 0.2s' }} className="hover-text-white" title="Job Automation Repo">
+              <Github size={20} />
+            </a>
+            <a href="https://github.com/nagarajaabhishek/resume_agent" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--text-secondary)', transition: 'color 0.2s' }} className="hover-text-white" title="Resume Agent Repo">
+              <Github size={20} />
+            </a>
+          </div>
         </div>
 
         {/* Mobile Menu Toggle */}
@@ -38,10 +44,16 @@ function Navigation() {
 
       {/* Mobile Menu Overlay */}
       <div className={`mobile-menu-overlay ${isOpen ? 'open' : ''}`}>
-        <Link to="/" onClick={closeMenu} className={!isUni && location.pathname !== '/architecture' ? 'active' : ''}>For Students</Link>
+        <Link to="/" onClick={closeMenu} className={!isUni ? 'active' : ''}>For Students</Link>
         <Link to="/for-universities" onClick={closeMenu} className={isUni ? 'active' : ''}>For Universities</Link>
-        <Link to="/architecture" onClick={closeMenu} className={location.pathname === '/architecture' ? 'active' : ''}>Architecture Engine</Link>
-        <button className="btn-primary" style={{ width: '100%', marginTop: '20px' }}>Sign In</button>
+        <div style={{ display: 'flex', gap: '16px', marginTop: '20px', justifyContent: 'center' }}>
+          <a href="https://github.com/nagarajaabhishek/jobs" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Github size={24} /> Job Pipeline
+          </a>
+          <a href="https://github.com/nagarajaabhishek/resume_agent" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Github size={24} /> Resume Agent
+          </a>
+        </div>
       </div>
     </nav>
   );
@@ -62,7 +74,6 @@ function App() {
           </Routes>
         </main>
 
-        {/* Shared Footer */}
         <footer className="footer">
           <div className="container">
             <div className="footer-content">
@@ -75,6 +86,8 @@ function App() {
             <div className="footer-bottom">
               <p className="footer-text">© 2026 Job Automation. All rights reserved.</p>
               <div className="footer-links">
+                <a href="https://github.com/nagarajaabhishek/jobs" target="_blank" rel="noopener noreferrer">Job Automation Repo</a>
+                <a href="https://github.com/nagarajaabhishek/resume_agent" target="_blank" rel="noopener noreferrer">Resume Agent Repo</a>
                 <a href="#">Privacy Policy</a>
                 <a href="#">Terms of Service</a>
               </div>

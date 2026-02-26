@@ -14,8 +14,8 @@ flowchart TD
 
     %% Phase 1: Sourcing
     subgraph Sourcing["Phase 1: Sourcing & Filtering"]
-        A["Direct ATS Scrapers"]
-        B["JobSpy / Aggregators"]
+        A["Direct ATS Scrapers (Greenhouse, Lever)"]
+        B["JobSpy / Aggregators (LinkedIn, Indeed, Glassdoor)"]
         A --> C{"H1B Sponsorship Probe"}
         B --> C
         C -- "No" --> Z(("Drop"))
