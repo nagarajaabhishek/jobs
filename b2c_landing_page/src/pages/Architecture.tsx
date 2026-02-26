@@ -9,6 +9,7 @@ flowchart TD
     subgraph Inputs["Base Configurations"]
         H[("University Syllabus YAML")]
         I[("Master Profile YAML")]
+        T[("LaTeX Base Templates")]
     end
 
     %% Phase 1: Sourcing
@@ -22,6 +23,7 @@ flowchart TD
         D -- "Non-Target" --> Z
         D -- "Target Hubs" --> E{"Gemini 2.5 Flash-Lite"}
         E -- "Lacks Keywords" --> Z
+        E -- "Valid Jobs" --> F[("Local JSON Cache")]
     end
 
     %% The Core Cache
@@ -42,15 +44,13 @@ flowchart TD
         J & K --> M(["Prescriptive Gap Analysis"])
     end
 
-    %% Phase 4: Artifacts (Resume Agent)
-    subgraph Artifacts["Phase 4: Resume_Agent Architecture"]
-        I -. "Base History" .-> RA_Data[("Role Specific YAMLs")]
-        T[("LaTeX Base Templates (.cls, .tex)")] --> O
-        RA_Data --> O
-        L & M --> O["Python Generation Engine (XYZ Pattern & Line Efficiency)"]
-        
-        O --> P[("ATS-Optimized PDF Resume")]
-        O --> Q[("Custom Cover Letter")]
+    %% Phase 4: Artifact Generation (Resume_Agent)
+    subgraph Artifacts["Phase 4: Artifact Generation (Resume_Agent)"]
+        W[("Antigravity Master Rules & Workflows")] -. "Enforces XYZ Pattern" .-> O
+        L & M --> O["Python Tailoring Engine"]
+        T --> O
+        O --> P[("LaTeX Compiled PDF Resume")]
+        O --> Q[("LaTeX Compiled Cover Letter")]
     end
 
     %% Phase 5: UI & Distribution
@@ -76,9 +76,9 @@ flowchart TD
     class C,D,E filter
     class G agent
     class J,K eval
-    class O generator
+    class O,P,Q generator
     class S,U,V ui
-    class H,I,T,N,RA_Data db
+    class H,I,T,N,W db
     class F cache
     class Z drop
 `;
@@ -203,12 +203,18 @@ export default function Architecture() {
                     </div>
 
                     <div className="feature-card animate-fade-up delay-4">
+                        <div className="feature-icon"><LayoutTemplate size={24} /></div>
+                        <h3>LaTeX Resume Engine</h3>
+                        <p>We decouple data from design. The Python pipeline uses your Master Profile (YAML) to dynamically inject matching keywords into a structural LaTeX template (.cls), guaranteeing 90%+ parse rates across every standard ATS.</p>
+                    </div>
+
+                    <div className="feature-card animate-fade-up delay-5">
                         <div className="feature-icon"><ShieldCheck size={24} /></div>
                         <h3>Unified Cloud Bridge</h3>
                         <p>A robust API fallback system using OpenRouter guarantees uptime. If a primary LLM endpoint is throttled, the evaluation state machine instantly reroutes to an alternative model.</p>
                     </div>
 
-                    <div className="feature-card animate-fade-up delay-5">
+                    <div className="feature-card animate-fade-up delay-6">
                         <div className="feature-icon"><Database size={24} /></div>
                         <h3>Local JSON JD Caching</h3>
                         <p>Full Job Descriptions are cached locally to avoid cluttering downstream database clients (Google Sheets), keeping the SSOT clean and hyper-focused on prescriptive analytics.</p>
