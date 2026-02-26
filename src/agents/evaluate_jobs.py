@@ -2,12 +2,14 @@ import logging
 import os
 import re
 import yaml
+import json
 from collections import Counter
 
 from src.core.google_sheets_client import GoogleSheetsClient, normalize_job_url
 from src.core.llm_router import LLMRouter
 from src.core.config import get_evaluation_config
 from src.core.job_filters import passes_evaluation_prefilter
+from src.core.schemas import JobEvaluationSchema
 
 # Fallback when config not used
 BATCH_EVAL_SIZE_DEFAULT = 4
@@ -28,9 +30,7 @@ def score_to_verdict(score: int) -> str:
 class JobEvaluator:
     def __init__(self):
         self.sheets_client = GoogleSheetsClient()
-        eval_cfg = get_evaluation_config()
-        ollama_model = eval_cfg.get("ollama_model") or os.environ.get("OLLAMA_MODEL") or "llama3.2"
-        self.llm = LLMRouter(model=ollama_model)
+        self.llm = LLMRouter()
         self.prompt_path = "src/prompts/gemini_job_fit_analyst.md"
         self.roles = sorted([
             "Product Manager (TPM)", "Product Owner (PO)", "Business Analyst (BA)", 
@@ -55,72 +55,11 @@ class JobEvaluator:
         self.company_insights_path = "data/company_insights.yaml"
         self.company_insights = self._load_yaml_cache(self.company_insights_path)
 
-        # Local migration path: prioritize 'data/' within this repo
-        local_profiles = os.path.join(os.getcwd(), "data", "profiles")
-        if os.path.isdir(local_profiles):
-            self.profiles_dir = local_profiles
-            self.master_profile_path = os.path.join(self.profiles_dir, "master_context.yaml")
-        else:
-            # Fallback path if data/ doesn't exist (legacy/env)
-            master_path = os.environ.get("MASTER_PROFILE_PATH")
-            if master_path and os.path.isfile(master_path):
-                self.master_profile_path = master_path
-                self.profiles_dir = os.path.dirname(master_path)
-            else:
-                profile_dir = os.environ.get("PROFILE_DIR", "/Users/abhisheknagaraja/Documents/Resume_Agent/.agent/data/Abhishek/")
-                self.profiles_dir = profile_dir.rstrip(os.sep)
-                self.master_profile_path = os.path.join(self.profiles_dir, "master_context.yaml")
-        
-        # Pre-cache role summaries for Deep Match
-        self.role_summaries = self._load_role_summaries()
-
-    def _load_role_summaries(self):
-        """Dynamically loads and pre-summarizes all role profiles found in profiles_dir."""
-        summaries = {}
-        found_roles = []
-        
-        if not os.path.exists(self.profiles_dir):
-            return summaries
-
-        # Scan for all role_*.yaml files
-        for filename in os.listdir(self.profiles_dir):
-            if filename.startswith("role_") and filename.endswith(".yaml"):
-                fpath = os.path.join(self.profiles_dir, filename)
-                try:
-                    with open(fpath, "r") as f:
-                        content = yaml.safe_load(f)
-                    
-                    # Derive role name from filename or internal name
-                    # e.g., role_technical_product_manager.yaml -> Product Manager (TPM)
-                    # For now, we'll try to match against our standard set or use a cleaned filename
-                    base = filename.replace("role_", "").replace(".yaml", "").replace("_", " ").title()
-                    
-                    # Map common patterns to our standardized names for better consistency
-                    role_name = base
-                    if "Tpm" in base or "Technical Product Manager" in base: role_name = "Product Manager (TPM)"
-                    elif "Po" in base or "Product Owner" in base: role_name = "Product Owner (PO)"
-                    elif "Ba" in base or "Business Analyst" in base: role_name = "Business Analyst (BA)"
-                    elif "Sm" in base or "Scrum Master" in base: role_name = "Scrum Master (SM)"
-                    elif "Gtm" in base: role_name = "Go-To Market (GTM)"
-                    
-                    found_roles.append(role_name)
-                    
-                    # Use simplified summary logic for roles
-                    s = f"### {role_name} SPECIALIZATION\n"
-                    s += f"Summary: {content.get('summary', 'N/A')}\n"
-                    top_skills = []
-                    for entry in content.get('skills', [])[:3]:
-                        if isinstance(entry, dict):
-                            cat = entry.get('category')
-                            skills = entry.get('skill_list') or entry.get('skills')
-                            top_skills.append(f"{cat}: {skills}")
-                    s += f"Key Skills: {'; '.join(top_skills)}\n"
-                    summaries[role_name] = s
-                except Exception as e:
-                    print(f"  ⚠ Error loading profile {filename}: {e}")
-        
-        self.roles = sorted(list(set(found_roles)))
-        return summaries
+        self.formatting_instruction = (
+            "\n\nCRITICAL INSTRUCTION: You MUST output ONLY a valid JSON object matching the exact "
+            "schema provided in the base prompt. DO NOT include any conversational text, explanations, "
+            "or markdown formatting blocks (like ```json)."
+        )
 
     def get_verified_sponsorship(self, company):
         """Checks if a company has a verified sponsorship history."""
@@ -252,84 +191,62 @@ class JobEvaluator:
         with open(self.prompt_path, 'r') as f:
             return f.read()
 
-    def summarize_profile(self, profile):
-        """Converts complex YAML profile into a high-density Markdown summary for better LLM parsing."""
-        summary = "## USER PROFESSIONAL SUMMARY\n\n"
-        
-        # 1. Experience
-        summary += "### TOP EXPERIENCE\n"
-        for exp in profile.get('experience', [])[:5]:
-            summary += f"- **{exp.get('role')}** at {exp.get('company')} ({exp.get('start_date')} - {exp.get('end_date')})\n"
-            summary += f"  * Key: {', '.join(exp.get('bullet_points', [])[:3])}\n"
-            
-        # 2. Key Skills
-        summary += "\n### SKILLS INVENTORY\n"
-        skills = profile.get('skills', [])
-        if isinstance(skills, list):
-            for skill_entry in skills:
-                cat = skill_entry.get('category', 'General')
-                list_str = skill_entry.get('skill_list', '')
-                summary += f"- **{cat}**: {list_str}\n"
-        elif isinstance(skills, dict):
-            for category, skill_list in skills.items():
-                summary += f"- **{category}**: {', '.join(skill_list)}\n"
-
-            
-        # 3. Projects (Crucial for evidence)
-        summary += "\n### PROJECTS\n"
-        for proj in profile.get('projects', [])[:5]:
-            summary += f"- **{proj.get('name')}**: {proj.get('description')}\n"
-            if proj.get('technologies'):
-                summary += f"  * Tech: {', '.join(proj.get('technologies'))}\n"
-                
-        return summary
-
     def load_user_profiles(self):
-        """Loads and summarizes the master context for evaluation context."""
-        if os.path.exists(self.master_profile_path):
-            with open(self.master_profile_path, "r") as f:
-                content = yaml.safe_load(f)
-                summary = self.summarize_profile(content)
-                return f"{summary}\n\n### TARGET ROLES AVAILABLE\n{', '.join(self.roles)}"
-        print(f"  ⚠ Warning: Master profile not found at {self.master_profile_path}. Set PROFILE_DIR or MASTER_PROFILE_PATH in .env")
-        return "Error: Master profile not found. Set PROFILE_DIR or MASTER_PROFILE_PATH."
+        """Loads the highly compressed dense matrix for efficient LLM context."""
+        matrix_path = os.path.join(os.getcwd(), "data", "dense_master_matrix.json")
+        try:
+            with open(matrix_path, "r") as f:
+                matrix_data = json.load(f)
+                
+            # Render a hyper-dense context block
+            summary = "## CANDIDATE DENSE MATRIX (JSON CONTEXT)\n"
+            summary += json.dumps(matrix_data, indent=2)
+            
+            # Append available roles for the output
+            roles = [k for k in matrix_data.get("role_variants", {}).keys()]
+            summary += f"\n\n### TARGET ROLES AVAILABLE\n{', '.join(roles)}"
+            return summary
+        except Exception as e:
+            print(f"  ⚠ Warning: Could not load dense matrix. Have you run build_dense_matrix.py? Error: {e}")
+            return "Error: Dense matrix missing."
 
     def get_profile_skill_keywords(self):
-        """Extract searchable skill keywords from the profile for overlap counting. Returns a set of lowercase phrases."""
+        """Extract searchable skill keywords from the dense matrix for overlap counting."""
         keywords = set()
-        if not os.path.exists(self.master_profile_path):
-            return keywords
+        matrix_path = os.path.join(os.getcwd(), "data", "dense_master_matrix.json")
         try:
-            with open(self.master_profile_path, 'r') as f:
-                content = yaml.safe_load(f)
-            # From skills
-            for entry in content.get("skills", []) if isinstance(content.get("skills"), list) else []:
-                list_str = entry.get("skill_list") or entry.get("skills") or ""
-                for part in re.split(r"[,;/]", str(list_str)):
-                    token = part.strip().lower()
-                    if len(token) > 2:
-                        keywords.add(token)
-            if isinstance(content.get("skills"), dict):
-                for skill_list in content["skills"].values():
-                    for s in (skill_list or []):
-                        if isinstance(s, str) and len(s) > 2:
-                            keywords.add(s.strip().lower())
-            # From experience bullets
-            for exp in content.get("experience", [])[:8]:
-                for bullet in exp.get("bullet_points", [])[:5]:
-                    for part in re.split(r"[,;.]", str(bullet)):
+            if not os.path.exists(matrix_path): 
+                return keywords
+                
+            with open(matrix_path, "r") as f:
+                matrix_data = json.load(f)
+                
+            # Extract from core skills across role variants
+            for role_data in matrix_data.get("role_variants", {}).values():
+                for skill_category_str in role_data.get("core_skills", []):
+                    # Example format: "Product Management: Product Strategy, Roadmap..."
+                    if ":" in skill_category_str:
+                        skill_list_str = skill_category_str.split(":", 1)[1]
+                    else:
+                        skill_list_str = skill_category_str
+                        
+                    for part in re.split(r"[,;/]", skill_list_str):
                         token = part.strip().lower()
-                        if 3 <= len(token) <= 40:
+                        if len(token) > 2:
                             keywords.add(token)
-            # From projects
-            for proj in content.get("projects", [])[:5]:
-                desc = proj.get("description") or ""
-                for part in re.split(r"[,;.]", desc):
-                    token = part.strip().lower()
-                    if 3 <= len(token) <= 40:
+                            
+            # Extract from core achievements text
+            for achieve in matrix_data.get("core_achievements", []):
+                # Clean out company [Tags] for naive keyword match
+                clean_target = re.sub(r'\[.*?\]', '', achieve)
+                for part in re.split(r"[\s,;.-]", clean_target):
+                    token = re.sub(r'[^a-z]', '', part.lower())
+                    if 3 <= len(token) <= 30:
                         keywords.add(token)
-        except Exception:
-            pass
+                        
+        except Exception as e:
+            logging.warning(f"Error extracting keywords from sparse matrix: {e}")
+            
         return keywords
 
     def count_skill_overlap(self, jd_text, keywords=None):
@@ -343,124 +260,92 @@ class JobEvaluator:
 
 
     def parse_evaluation(self, raw_text):
-        # 1. Parse Recommended Resume
-        recommended = "Unknown"
-        # Search for strict header first
-        rec_match = re.search(r"\*\*Recommended Resume\*\*\s*\n+([^\n]+)", raw_text, re.IGNORECASE)
-        if rec_match:
-            recommended = rec_match.group(1).replace("[", "").replace("]", "").replace("*", "").strip()
-        else:
-            # Fallback search for loose bullet points or conversational text
-            for t in ["TPM", "PO", "BA", "SM", "Manager", "GTM"]:
-                if re.search(r"\b" + t + r"\b", raw_text, re.IGNORECASE):
-                    recommended = t
-                    break
-
-        # 2. Parse Match Type
-        # 0. Clean and prepare text
+        """
+        Parses LLM output into a structured evaluation tuple.
+        Prioritizes JSON parsing, falls back to Regex if needed.
+        """
         text = raw_text.strip()
         
-        # 1. Parse Location Verification
-        loc_ver = "Unknown"
-        loc_match = re.search(r"\*\*Location Verification\*\*\s*\n*(.*?)(?=\n\n|\n\*\*|$)", text, re.DOTALL | re.IGNORECASE)
-        if loc_match:
-            loc_ver = loc_match.group(1).strip()
+        # 1. Try JSON Parsing first
+        try:
+            # Find the first { and last } to handle potential conversational noise
+            start = text.find('{')
+            end = text.rfind('}')
+            if start != -1 and end != -1:
+                json_str = text[start:end+1]
+                data = json.loads(json_str)
+                
+                # HEAL JSON: Handle common LLM quirks (like returning lists for scalar fields)
+                # Conviction Score
+                score = data.get("apply_conviction_score", 0)
+                if isinstance(score, list) and score: score = score[0]
+                try: 
+                    score_str = str(score).strip("[]* ")
+                    score = int(score_str) if score_str else 0
+                except: score = 0
+                data["apply_conviction_score"] = score
+                
+                # Clean up other fields
+                for field in ["verdict", "recommended_resume", "h1b_sponsorship", "location_verification"]:
+                    if field in data:
+                        data[field] = str(data[field]).strip("[]* ")
+                
+                # Tech stack & Skill gaps (ensure lists)
+                for field in ["tech_stack", "skill_gaps"]:
+                    if field in data and isinstance(data[field], str):
+                        data[field] = [s.strip() for s in data[field].split(",")]
+                
+                # Validate with Pydantic
+                validated = JobEvaluationSchema(**data)
+                
+                return (
+                    validated.verdict, 
+                    validated.recommended_resume,
+                    validated.h1b_sponsorship,
+                    validated.location_verification,
+                    ", ".join(validated.skill_gaps),
+                    validated.reasoning,
+                    validated.salary_range,
+                    ", ".join(validated.tech_stack),
+                    validated.apply_conviction_score
+                )
+        except Exception as e:
+            logging.debug(f"JSON Parsing failed, falling back to regex: {e}")
 
-        # 2. Parse H1B Sponsorship
-        h1b_status = "Unknown"
-        h1b_match = re.search(r"\*\*H1B Sponsorship\*\*\s*\n*(.*?)(?=\n\n|\n\*\*|$)", text, re.DOTALL | re.IGNORECASE)
-        if h1b_match:
-            h1b_status = h1b_match.group(1).strip()
+        # 2. REGEX FALLBACK (for corrupted JSON strings)
+        def extract_str(key, default="Unknown"):
+            # Matches "key": "value"
+            pattern = rf'"{key}"\s*:\s*"([^"]+)"'
+            match = re.search(pattern, text, re.IGNORECASE | re.DOTALL)
+            if match:
+                val = match.group(1).strip("[]* \n\"")
+                return val if val else default
+            return default
 
-        # 3. Parse Recommended Resume
-        recommended = "Unknown"
-        resume_match = re.search(r"\*\*Recommended Resume\*\*\s*\n*(.*?)(?=\n\n|\n\*\*|$)", text, re.DOTALL | re.IGNORECASE)
-        if resume_match:
-            val = resume_match.group(1).strip()
-            # Strict cleaning
-            val = val.replace('[', '').replace(']', '').replace('*', '').strip()
-            # Check if it matches any of our allowed roles
-            for role in self.roles:
-                if role.lower() in val.lower() or (re.search(r"\((.*?)\)", role) and re.search(r"\((.*?)\)", role).group(1).lower() in val.lower()):
-                    recommended = role
-                    break
-            if recommended == "Unknown":
-                recommended = val # Fallback to LLM output if it doesn't match clean list
-            
-        # 4. Parse Match Type
-        match_type = "Unknown"
-        # Search for any line containing "Type" or "Match" followed by one of our categories
-        categories = ["For sure", "Worth Trying", "Ambitious", "Maybe", "Not at all"]
+        def extract_list(key, default="Unknown"):
+            # Matches "key": ["val1", "val2"]
+            pattern = rf'"{key}"\s*:\s*\[(.*?)\]'
+            match = re.search(pattern, text, re.IGNORECASE | re.DOTALL)
+            if match:
+                # Extract values from the array string
+                inner = match.group(1)
+                items = re.findall(r'"([^"]+)"', inner)
+                return ", ".join(items) if items else default
+            return default
+
+        loc_ver = extract_str("location_verification")
+        h1b_status = extract_str("h1b_sponsorship")
+        recommended = extract_str("recommended_resume")
+        reasoning = extract_str("reasoning")
+        salary = extract_str("salary_range")
+        match_type = extract_str("verdict")
         
-        # Look for the Category itself anywhere in the text if a strict match fails
-        type_found = False
-        # Try strict header first
-        for header in ["Match Type", "Type", "Fit Type"]:
-            pattern = rf"\*\*{header}\*\*\s*\n*(.*?)(?=\n\n|\n\*\*|$)"
-            m = re.search(pattern, text, re.DOTALL | re.IGNORECASE)
-            if m:
-                val = m.group(1).strip().replace('*', '').replace('-', '').strip()
-                # Check if the value contains any of our categories
-                for cat in categories:
-                    if cat.lower() in val.lower():
-                        match_type = cat
-                        type_found = True
-                        break
-            if type_found: break
-            
-        if not type_found:
-            # Final fallback: Just look for the keywords in the whole text
-            # But only if they appear near the top or bottom to avoid false positives in reasoning
-            for cat in categories:
-                if re.search(rf"\b{cat}\b", text, re.IGNORECASE):
-                    match_type = cat
-                    break
+        skills = extract_list("skill_gaps")
+        tech_stack = extract_list("tech_stack")
         
-        if match_type == "Unknown":
-            match_type = "Maybe" # Default only if truly nothing found
-
-
-        # 5. Parse Skill Gaps
-        skills = "N/A"
-        skills_match = re.search(r"\*\*Skill Gap Summary\*\*\s*\n*(.*?)(?=\n\n|\n\*\*|$)", text, re.DOTALL | re.IGNORECASE)
-        if skills_match:
-            skills = skills_match.group(1).strip()
-            
-        # 6. Parse Reasoning (Catch everything between Type/Verdict and Skill Gap Summary)
-        reasoning = "N/A"
-        reason_match = re.search(r"\*\*Reasoning\*\*\s*\n*(.*?)(?=\n\n|\n\*\*|Skill Gap Summary|$)", text, re.DOTALL | re.IGNORECASE)
-        if reason_match:
-            reasoning = reason_match.group(1).strip()
-            
-        # 7. Parse Salary
-        salary = "Not mentioned"
-        salary_match = re.search(r"\*\*Salary Range\*\*\s*\n*(.*?)(?=\n\n|\n\*\*|$)", text, re.DOTALL | re.IGNORECASE)
-        if salary_match:
-            salary = salary_match.group(1).strip()
-            
-        # 8. Parse Tech Stack
-        tech_stack = "N/A"
-        tech_match = re.search(r"\*\*Tech Stack Identified\*\*\s*\n*(.*?)(?=\n\n|\n\*\*|$)", text, re.DOTALL | re.IGNORECASE)
-        if tech_match:
-            tech_stack = tech_match.group(1).strip()
-
-        # 9. Parse Apply Conviction Score
-        score = 0
-        # More robust regex to handle "Score: 85", "Score: 85/100", "score of 85", etc.
-        score_patterns = [
-            r"Apply Conviction Score:\s*(\d+)",
-            r"Score:\s*(\d+)",
-            r"score of\s*(\d+)",
-            r"Confidence:\s*(\d+)"
-        ]
-        
-        for pattern in score_patterns:
-            score_match = re.search(pattern, text, re.IGNORECASE)
-            if score_match:
-                score = int(score_match.group(1))
-                break
-        
-        # Cleanup score if LLM outputted something like 1000 or -1
+        # Parse Score
+        score_match = re.search(r'"apply_conviction_score"\s*:\s*(\d+)', text, re.IGNORECASE)
+        score = int(score_match.group(1)) if score_match else 0
         score = max(0, min(100, score))
 
         return match_type, recommended, h1b_status, loc_ver, skills, reasoning, salary, tech_stack, score
@@ -487,11 +372,7 @@ class JobEvaluator:
         sheet_batch_size = eval_cfg.get("sheet_batch_size", SHEET_BATCH_SIZE_DEFAULT)
         batch_size = eval_cfg.get("batch_eval_size", BATCH_EVAL_SIZE_DEFAULT)
 
-        print(f"Evaluation backend: Ollama (model: {self.llm.ollama_model})")
-        ok, err = self.llm.check_ollama_available()
-        if not ok:
-            print(f"  ⚠ {err}")
-            print("  Continuing anyway; batches will show 'LLM failed' if Ollama is not running.")
+        print(f"Evaluation backend: {self.llm.provider}")
 
         if mode == "MAYBE":
             print("Fetching 'Maybe' jobs for re-evaluation...")
@@ -505,6 +386,9 @@ class JobEvaluator:
             return
 
         print(f"Found {len(new_jobs)} jobs. Loading Context...")
+        sys_prompt = self.load_system_prompt()
+        profiles_prompt = self.load_user_profiles()
+        
         already_seen = self.sheets_client.get_already_evaluated_or_applied_canonical_urls()
         # Prepare role specializations text for Deep Match
         role_specs_text = "\n\n".join(self.role_summaries.values())
@@ -585,13 +469,20 @@ class JobEvaluator:
                 user_prompt += "\n\nEvaluate each job separately. Separate with: ---EVAL---"
 
             print(f"  Batch evaluating {chunk_start+1}-{chunk_start+len(chunk)}...")
-            raw_text, engine_used = self.llm.generate_content(grounded_sys_prompt, user_prompt)
+            eval_cfg = get_evaluation_config()
+            eval_model = eval_cfg.get("gemini_model")
+            
+            raw_text, engine_used = self.llm.generate_content(
+                grounded_sys_prompt, user_prompt, 
+                formatting_instruction=self.formatting_instruction,
+                model=eval_model
+            )
 
             if engine_used == "FAILED":
                 for job in chunk:
                     target_ws = job.get("_worksheet") or worksheet
                     if target_ws not in updates_by_ws: updates_by_ws[target_ws] = []
-                    updates_by_ws[target_ws].append((job["_row_index"], "Maybe", "Unknown", "N/A", "N/A", "LLM failed"))
+                    updates_by_ws[target_ws].append((job["_row_index"], "Maybe", "Unknown", "N/A", "N/A", "LLM failed", 0, "LLM failed"))
                     evaluated_match_types.append("Maybe")
                 continue
 
@@ -603,7 +494,7 @@ class JobEvaluator:
                 
                 if block:
                     parsed = self.parse_evaluation(block)
-                    match_type, rec, h1b, loc, missing, reason, salary, tech, score = parsed
+                    match_type, rec, h1b, loc, missing, reasoning, salary, tech, score = parsed
                     
                     # FALLBACK CALCULATION: If LLM failed score or was 0, use metrics
                     if score == 0:
@@ -626,13 +517,20 @@ class JobEvaluator:
                     self.update_sponsorship_cache(job.get("Company"), h1b)
                     self.update_intelligence_caches(job, eval_results)
                     
-                    updates_by_ws[target_ws].append((job["_row_index"], match_type, rec, h1b, loc, missing, score))
+                    updates_by_ws[target_ws].append((job["_row_index"], match_type, rec, h1b, loc, missing, score, reasoning))
                     evaluated_match_types.append(match_type)
-                    print(f"    -> {job.get('Role Title')}: {match_type} ({score})")
+                    print(f"    ✅ Eval complete: {job.get('Role Title')} -> {match_type} ({score})")
                 else:
                     fallback = "❌ No"
-                    updates_by_ws[target_ws].append((job["_row_index"], fallback, "Unknown", "N/A", "N/A", "Parse failed", 0))
+                    updates_by_ws[target_ws].append((job["_row_index"], fallback, "Unknown", "N/A", "N/A", "Parse failed", 0, "Parse failed"))
                     evaluated_match_types.append(fallback)
+
+            # --- PERIODIC SYNC (Every 2 jobs to show immediate progress) ---
+            for ws, batch in updates_by_ws.items():
+                if len(batch) >= 2:
+                    print(f"\n  -> Periodic Sync: Updating {len(batch)} jobs in '{ws.title}'...")
+                    self.sheets_client.update_evaluated_jobs(ws, batch)
+                    batch.clear() 
 
         # 3. Final Batch Save
         if updates_by_ws:
@@ -645,23 +543,27 @@ class JobEvaluator:
         # 4. Save and Summarize
         self.save_all_caches()
 
-        # Calibration summary: distribution and Maybe > 80% warning
-
-        # Calibration summary: distribution and Maybe > 80% warning
+        high_priority_count = 0
         if evaluated_match_types:
             dist = Counter(evaluated_match_types)
+            high_priority_count = dist.get("🔥 Auto-Apply", 0) + dist.get("✅ Strong Match", 0)
+            
             total = len(evaluated_match_types)
             print("\n--- Match Type distribution ---")
-            for label in ["For sure", "Worth Trying", "Ambitious", "Maybe", "Not at all"]:
+            labels = ["🔥 Auto-Apply", "✅ Strong Match", "⚖️ Worth Considering", "❌ No", "Already seen"]
+            for label in labels:
                 n = dist.get(label, 0)
                 pct = (100 * n / total) if total else 0
                 print(f"  {label}: {n} ({pct:.0f}%)")
-            maybe_pct = (100 * dist.get("Maybe", 0) / total) if total else 0
-            if maybe_pct > 80:
-                print("\n  ⚠ Calibration warning: >80% of jobs are 'Maybe'. Consider adding few-shot examples or tightening the 5+ skill rule in the prompt.")
+            
+            # Check for overly cautious scoring (legacy "Maybe" warning updated for "No" or low scores)
+            no_pct = (100 * dist.get("❌ No", 0) / total) if total else 0
+            if no_pct > 80:
+                print("\n  ⚠ Calibration warning: >80% of jobs are 'No'. Consider audit of sourcing queries or JD pre-parsing.")
 
         print("\nDone! Sorting the Google Sheet by match priority...")
         self.sheets_client.sort_daily_jobs()
+        return high_priority_count
 
 
     def save_batch_if_needed(self, updates_list, worksheet, batch_size=25):

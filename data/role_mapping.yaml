@@ -1,0 +1,9 @@
+# Role Mapping for Deep Match
+
+- **TPM**: data/profiles/role_tpm.yaml
+- **Product Owner (PO)**: data/profiles/role_po.yaml
+- **Business Analyst (BA)**: data/profiles/role_sm.yaml (Fallback - contains BA metrics)
+- **Scrum Master (SM)**: data/profiles/role_sm.yaml
+- **Manager**: data/profiles/role_manager.yaml
+- **Go-To Market (GTM)**: data/profiles/role_gtm.yaml
+- **Dubai**: data/profiles/role_dubai.yaml

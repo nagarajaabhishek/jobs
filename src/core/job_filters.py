@@ -5,40 +5,55 @@ Single source of truth so both pipelines stay in sync.
 from __future__ import annotations
 
 import re
+from src.core.config import get_filters_config
+
+# Load dynamic filters
+_f = get_filters_config()
 
 # ----- Target roles (sourcing: title must match one of these) -----
-TITLE_INCLUSIONS = [
+TITLE_INCLUSIONS = _f.get("inclusions", [
     "product manager", "project manager", "program manager",
     "business analyst", "product owner", "scrum master",
     "agile coach", "gtm", "go-to market", "strategy", "operations analyst",
-]
+    "product lead", "project lead", "program lead", "delivery manager",
+    "operations manager", "business operations", "chief of staff",
+    "ba", "pm", "po", "tpm", "pmo", "scrum", "agile",
+])
 
 # ----- Exclusions (applied in both sourcing and evaluation) -----
-SENIOR_KEYWORDS = [
+SENIOR_KEYWORDS = _f.get("seniority_exclusions", [
     "senior", "sr", "sr.", "staff", "principal", "director",
     "vp", "head of", "lead", "manager ii",
-]
-LEVEL_EXCLUSIONS = [
+])
+LEVEL_EXCLUSIONS = _f.get("level_exclusions", [
     "intern", "internship", "co-op", "graduate intern", "student intern",
-]
-CLEARANCE_KEYWORDS = [
+])
+CLEARANCE_KEYWORDS = _f.get("clearance_keywords", [
     "clearance", "ts/sci", "secret clearance", "top secret",
-]
-UNRELATED_KEYWORDS = [
+])
+UNRELATED_KEYWORDS = _f.get("unrelated_keywords", [
     "nurse", "registered nurse", "rn", "physician", "driver", "cdl",
     "warehouse", "mechanic", "cashier", "architect", "software engineer",
     "backend", "frontend", "fullstack", "full stack", "account executive", "recruiter",
     "firmware", "hardware", "validation", "characterization",
     "testing engineer", "product engineer", "data analyst",
-]
+])
 
 # ----- Location (sourcing only) -----
-ALLOWED_LOCATIONS = ["usa", "united states", "dubai", "uae", "remote", "us"]
-LOCATION_EXCLUSIONS = [
+ALLOWED_LOCATIONS = _f.get("allowed_locations", [
+    "usa", "united states", "dubai", "uae", "remote", "us",
+    ", al", ", ak", ", az", ", ar", ", ca", ", co", ", ct", ", de", ", fl", ", ga",
+    ", hi", ", id", ", il", ", in", ", ia", ", ks", ", ky", ", la", ", me", ", md",
+    ", ma", ", mi", ", mn", ", ms", ", mo", ", mt", ", ne", ", nv", ", nh", ", nj",
+    ", nm", ", ny", ", nc", ", nd", ", oh", ", ok", ", or", ", pa", ", ri", ", sc",
+    ", sd", ", tn", ", tx", ", ut", ", vt", ", va", ", wa", ", wv", ", wi", ", wy",
+    ", dc"
+])
+LOCATION_EXCLUSIONS = _f.get("forbidden_locations", [
     "india", "uk", "london", "canada", "australia", "germany", "france",
     "singapore", "bangalore", "hyderabad", "toronto",
     "munich", "berlin", "dresden", "frankfurt", "europe",
-]
+])
 
 # Non-US markers in title (sourcing)
 TITLE_NON_US_MARKERS = ["(m/w/d)", "(all genders)"]
@@ -81,8 +96,25 @@ def passes_sourcing_filter(job: dict, *, log_fn=None) -> tuple[bool, str]:
     location = str(job.get("location", "")).lower()
     desc = (str(job.get("description", "")) + " " + str(job.get("url", ""))).lower()
 
-    # Title must match target roles
-    if not any(inc in title for inc in TITLE_INCLUSIONS):
+    # Title must match target roles (with word boundary support for short codes)
+    found_match = False
+    for inc in TITLE_INCLUSIONS:
+        if len(inc) <= 3: # Handle BA, PM, PO, TPM, PMO
+            if re.search(r"\b" + re.escape(inc) + r"\b", title):
+                found_match = True
+                break
+        elif inc in title: # Substring match for longer phrases like "product manager"
+            found_match = True
+            break
+            
+    if not found_match:
+        # Special check for "Business Analyst" separated by words (e.g. "Business Systems Analyst")
+        if "business" in title and "analyst" in title:
+            found_match = True
+        elif "product" in title and "manager" in title:
+            found_match = True
+            
+    if not found_match:
         return False, "Title match fail"
 
     # Non-US markers in title

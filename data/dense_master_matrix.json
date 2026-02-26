@@ -1,0 +1,99 @@
+{
+  "global_traits": {
+    "name": "Candidate",
+    "years_of_experience": 3.0,
+    "visa_status": "F-1 (Requires H1B Sponsorship)",
+    "clearance": "None",
+    "education": [
+      "Master of Science in Computer Science from None",
+      "Master of Science in Engineering Management from None",
+      "Bachelor of Technology in Computer Science and Engineering from None"
+    ]
+  },
+  "core_achievements": [
+    "[Project: Resume Agent - AI Resume Engineering System] Architected a Python-based resume generation system that achieves >90% ATS optimization scores."
+  ],
+  "role_variants": {
+    "DUBAI": {
+      "focus": "Technical Product Manager with a strong technical background in Computer Science and a user-centric approach to building scalable products. Expert in driving product strategy through technical and market research, leveraging human empathy to solve complex user problems, and ensuring customer satisfaction by aligning technical execution with business goals. diverse experience in cross-functional leadership and agile delivery.",
+      "core_skills": [
+        "Product & Project Management: Program Lifecycle Management, Risk Management, Stakeholder Communication, Roadmap Development, Feature Prioritization (RICE/MoSCoW), Process Improvement, SOP Design, GTM Strategy, A/B Testing, Market & User Research.",
+        "Business Development & Leadership: Cross-functional Leadership, Conflict Resolution, Startup Operations, Business Development, Partnership & Sponsorship, Resource Capacity Planning, Product Storytelling.",
+        "Software & Systems: Python, SQL, ReactJS, Git/GitHub, Docker, AWS (S3, EC2), CI/CD Concepts, API Strategy.",
+        "Project Tools: Jira, Asana, Notion, Microsoft Project, Figma, Power BI, Google Analytics, Excel.",
+        "AI Enhancement: AI-Powered SOP Architecture, Generative AI (Gemini, GPT-4o), n8n Automation, Prompt Engineering, AI Product Strategy, Model Evaluation Metrics, Automated Workflow Orchestration.",
+        "Agile Frameworks: Agile, Scrum, Waterfall, Kanban, Sprint Planning, Backlog Management."
+      ]
+    },
+    "TPM": {
+      "focus": "Technical Program Manager specializing in AI/ML Infrastructure and Scalable Systems with a background in Computer Science. Expert in architecting Multi-Agent Systems, reducing Operational Overhead, and driving Cross-Functional Alignment across engineering and business teams. Proficient in Cloud Architecture (AWS), API Design, and Agile Delivery to ship high-reliability products.",
+      "core_skills": [
+        "Technical Program Management: SDLC, CI/CD Pipelines, API Design (REST), Cloud Architecture (AWS), System Design, Data Modeling, Requirement Engineering, Release Management.",
+        "Agile & Methodologies: Scrum, Kanban, SAFe, Linear, Jira, Confluence, User Story Mapping, Sprint Planning, Retrospectives.",
+        "DevOps & Infrastructure: Docker, Kubernetes (K8s) concepts, Terraform (IaC), GitHub Actions, PostgreSQL, MongoDB.",
+        "AI & Analytics: LLMs (GPT-4o, Claude, Gemini), RAG Architectures, LangChain/LangGraph, Prompt Engineering, Python (Pandas, NumPy), Power BI, Tableau.",
+        "Languages: Python, SQL, JavaScript/TypeScript, HTML/CSS."
+      ]
+    },
+    "SM": {
+      "focus": "Certified Scrum Master (CSPO) and Agile Practitioner with a strong foundation in Servant Leadership, Stakeholder Networking, and Process Improvement. Proven ability to facilitate Scrum Ceremonies, remove Impediments, and improve Team Velocity by fostering a culture of collaboration. Skilled in leveraging Product Storytelling to align teams and Generative AI for backlog refinement.",
+      "core_skills": [
+        "Agile Frameworks: Scrum, Kanban, Lean, XP, SAFe (Concepts).",
+        "Scrum Mastery: Facilitation, Servant Leadership, Conflict Resolution, Impediment Removal, Backlog Refinement, Retrospectives, Velocity Tracking, Burndown Charts.",
+        "Soft Skills: Product Storytelling, Network Building, Stakeholder Management, Communication.",
+        "Tools: Jira, Linear, Confluence, Trello, Asana, Mural, Miro, Slack, Zoom, Microsoft Office (Word, Excel, PowerPoint), Google Workspace (Docs, Sheets).",
+        "AI & Tech: Generative AI (ChatGPT/Gemini) for Documentation, Predictive Analytics, SDLC, CI/CD, Clerk (Auth), NeonDB."
+      ]
+    },
+    "TECHNICAL_PRODUCT_MANAGER": {
+      "focus": "Technical Product Manager leveraging deep engineering expertise to drive \\textbf{Product Strategy} and \\textbf{Customer Satisfaction}. Adept at combining \\textbf{Technical Market Research} with \\textbf{Human Empathy} to build user-centric solutions. Expert in bridging the gap between complex engineering execution and business goals, ensuring product alignment with user needs and market demands.",
+      "core_skills": [
+        "Product Management: Product Strategy, Roadmap Development, Market Research, User Empathy, Customer Satisfaction, A/B Testing, Feature Prioritization, PRDs, Go-to-Market (GTM), Stakeholder Management, KPI Analysis, User Stories.",
+        "Technical Skills: SDLC, API Design (REST), Cloud Architecture (AWS), System Design, Data Modeling, Python, SQL, Tableau.",
+        "Agile & Methodologies: Scrum, Kanban, SAFe, Linear, Jira, Confluence, User Story Mapping, Sprint Planning, Retrospectives.",
+        "AI & Analytics: LLMs (GPT-4o, Claude, Gemini), RAG Architectures, LangChain/LangGraph, Prompt Engineering, Power BI, Amplitude.",
+        "Prototyping & Vibe Coding: Antigravity, Cursor, Windsurf, Replit, v0, Bolt.new, Rapid Prototyping."
+      ]
+    },
+    "TPM_GENERATED": {
+      "focus": "Technical Product Manager leveraging deep engineering expertise to drive \\textbf{Product Strategy} and \\textbf{Customer Satisfaction}. Adept at combining \\textbf{Technical Market Research} with \\textbf{Human Empathy} to build user-centric solutions. Expert in bridging the gap between complex engineering execution and business goals, ensuring product alignment with user needs and market demands.",
+      "core_skills": [
+        "Product Management: Product Strategy, Roadmap Development, Market Research, User Empathy, Customer Satisfaction, A/B Testing, Feature Prioritization, PRDs, Go-to-Market (GTM), Stakeholder Management, KPI Analysis, User Stories.",
+        "Technical Skills: SDLC, API Design (REST), Cloud Architecture (AWS, Azure, GCP), System Design, Data Modeling, Python, SQL, Tableau, JavaScript, TypeScript, Go, Rust.",
+        "Agile & Methodologies: Scrum, Kanban, SAFe, Linear, Jira, Confluence, User Story Mapping, Sprint Planning, Retrospectives.",
+        "AI & Analytics: LLMs (GPT-4o, Claude, Gemini), RAG Architectures, LangChain/LangGraph, Prompt Engineering, Power BI, Amplitude, TensorFlow, PyTorch, Hugging Face.",
+        "Prototyping & Vibe Coding: Antigravity, Cursor, Windsurf, Replit, v0, Bolt.new, Rapid Prototyping."
+      ]
+    },
+    "MANAGER": {
+      "focus": "Strategic Program and Operations Manager with a track record of building scalable systems and leading complex, cross-functional projects from ideation to launch. Expert in driving operational efficiency and reliable delivery through data-driven process improvement, stakeholder management, and team leadership.",
+      "core_skills": [
+        "Product & Project Management: Program Lifecycle Management, Risk Management, Stakeholder Communication, Roadmap Development, Feature Prioritization (RICE/MoSCoW), Process Improvement, SOP Design, GTM Strategy, A/B Testing, Market & User Research.",
+        "Business Development & Leadership: Cross-functional Leadership, Conflict Resolution, Startup Operations, Business Development, Partnership & Sponsorship, Resource Capacity Planning, Product Storytelling.",
+        "Software & Systems: Python, SQL, ReactJS, Git/GitHub, Docker, AWS (S3, EC2), CI/CD Concepts, API Strategy.",
+        "Project Tools: Jira, Asana, Notion, Microsoft Project, Figma, Power BI, Google Analytics, Excel.",
+        "AI Enhancement: AI-Powered SOP Architecture, Generative AI (Gemini, GPT-4o), n8n Automation, Prompt Engineering, AI Product Strategy, Model Evaluation Metrics, Automated Workflow Orchestration.",
+        "Agile Frameworks: Agile, Scrum, Waterfall, Kanban, Sprint Planning, Backlog Management."
+      ]
+    },
+    "GTM": {
+      "focus": "Product & Growth Professional specializing in GTM Strategy, Community Building, and Technical Product Marketing. Expert in orchestrating two-sided marketplace launches and bridging the gap between engineering innovation and commercial adoption. Proven ability to drive user acquisition, optimize revenue operations, and build thriving technical communities.\n",
+      "core_skills": [
+        "GTM & Strategy: Go-to-Market Strategy, Product Positioning, User Acquisition, Community-Led Growth, Competitive Analysis.",
+        "Growth Engineering: n8n (Workflow Automation), Python (Scripting), SQL, Zapier, API Integration, Cursor IDE.",
+        "Content & Operations: Technical Writing, Notion (SOPs), Figma (Assets), Brand Strategy, Event Management.",
+        "Analytics & Research: Market Research, User Interviews, NPS Analysis, A/B Testing, Google Analytics."
+      ]
+    },
+    "PO": {
+      "focus": "Certified Product Owner (CSPO) with a track record of driving Agile Product Delivery and Backlog Management. Expert in translating business needs into actionable User Stories and technical requirements. Skilled in facilitating Scrum ceremonies and leveraging Agentic Workflows and Generative AI to accelerate product velocity and automate discovery at scale.",
+      "core_skills": [
+        "Product Management: Roadmap Development, Backlog Refinement (DoR), User Story Mapping, Feature Prioritization (RICE/MoSCoW), GTM Strategy, A/B Testing, Market Research, Product Discovery.",
+        "Agile & Leadership: Scrum Facilitation, Kanban, Lean Methodologies, Stakeholder Management, Servant Leadership, Team Building, Conflict Resolution.",
+        "Cloud & DevOps: AWS (S3, EC2, Lambda), Docker, Terraform (IaC), Kubernetes, CI/CD Pipelines, API Integration, SQL, Python.",
+        "AI & Automation: AI Product Strategy, Gemini, GPT-4o, n8n Workflows, Prompt Engineering, Multi-Agent Systems, Automated Discovery Analysis.",
+        "Project Tools: Jira, Linear, Confluence, Asana, Miro, Notion, Figma, Power BI, Tableau, Google Analytics, Excel."
+      ]
+    }
+  }
+}

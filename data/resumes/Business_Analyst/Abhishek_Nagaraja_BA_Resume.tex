@@ -1,0 +1,238 @@
+%----------------------------------------------------------------------------------------
+%   CLASS DEFINITIONS (EMBEDDED RESUME.CLS)
+%----------------------------------------------------------------------------------------
+\documentclass[9pt,letterpaper]{article} % Font size and paper type
+
+\usepackage[parskip]{parskip} % Remove paragraph indentation
+\usepackage{array} % Required for boldface (\bf and \bfseries) tabular columns
+\usepackage{ifthen} % Required for ifthenelse statements
+\usepackage{charter}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage[colorlinks=true, urlcolor=blue]{hyperref}
+\usepackage[left=0.5in,top=0.25in,right=0.4in,bottom=0.2in, columnsep=0.5cm]{geometry}
+\input{glyphtounicode}
+\usepackage[none]{hyphenat}
+\usepackage{multicol}
+
+\pdfgentounicode=1
+\pagestyle{empty} % Suppress page numbers
+
+\makeatletter % Begin internal command redefinitions
+
+%----------------------------------------------------------------------------------------
+%	HEADINGS COMMANDS: Commands for printing name and address
+%----------------------------------------------------------------------------------------
+
+\def \name#1{\def\@name{#1}} % Defines the \name command to set name
+\def \@name {} % Sets \@name to empty by default
+
+\def \addressSep {$\diamond$} % Set default address separator to a diamond
+
+% One, two or three address lines can be specified
+\let \@addressone \relax
+\let \@addresstwo \relax
+\let \@addressthree \relax
+
+% \address command can be used to set the first, second, and third address (last 2 optional)
+\def \address #1{
+  \@ifundefined{@addresstwo}{
+    \def \@addresstwo {#1}
+  }{
+  \@ifundefined{@addressthree}{
+  \def \@addressthree {#1}
+  }{
+     \def \@addressone {#1}
+  }}
+}
+
+% \printaddress is used to style an address line (given as input)
+\def \printaddress #1{
+  \begingroup
+    \def \\ {\addressSep\ }
+    \centerline{#1}
+  \endgroup
+  \par
+}
+
+% \printname is used to print the name as a page header
+\def \printname {
+  \begingroup
+    \hfil{{\namesize\bf \@name}}\hfil
+    \nameskip\break
+  \endgroup
+}
+
+%----------------------------------------------------------------------------------------
+%	PRINT THE HEADING LINES
+%----------------------------------------------------------------------------------------
+
+\let\ori@document=\document
+\renewcommand{\document}{
+  \ori@document  % Begin document
+  \printname % Print the name specified with \name
+  \@ifundefined{@addressone}{}{ % Print the first address if specified
+    \printaddress{\@addressone}}
+  \@ifundefined{@addresstwo}{}{ % Print the second address if specified
+    \printaddress{\@addresstwo}}
+     \@ifundefined{@addressthree}{}{ % Print the third address if specified
+    \printaddress{\@addressthree}}
+}
+
+%----------------------------------------------------------------------------------------
+%	SECTION FORMATTING
+%----------------------------------------------------------------------------------------
+
+% Defines the rSection environment for the large sections within the CV
+\newenvironment{rSection}[1]{ % 1 input argument - section name
+  \sectionskip
+ \textbf{\Large #1} % Section title
+  \sectionlineskip
+  \hrule % Horizontal line
+  \begin{list}{}{ % List for each individual item in the section
+    \setlength{\leftmargin}{-0em} % Margin within the section
+  }
+  \item[]
+}{
+  \end{list}
+}
+
+%----------------------------------------------------------------------------------------
+%	WORK EXPERIENCE FORMATTING
+%----------------------------------------------------------------------------------------
+
+\newenvironment{rSubsection}[4]{ % 4 input arguments - company name, year(s) employed, job title and location
+ {\bf #1} \hfill {#2} % Bold company name and date on the right
+ \ifthenelse{\equal{#3}{}}{}{ % If the third argument is not specified, don't print the job title and location line
+  \\
+  {\em #3} \hfill {\em #4} % Italic job title and location
+  }\smallskip
+  \begin{list}{$\cdot$}{\leftmargin=0em} % \cdot used for bullets, no indentation
+   \itemsep -0.5em \vspace{-0.5em} % Compress items in list together for aesthetics
+  }{
+  \end{list}
+  \vspace{0em} % Some space after the list of bullet points
+}
+
+% The below commands define the whitespace after certain things in the document - they can be \smallskip, \medskip or \bigskip
+\def\namesize{\huge} % Size of the name at the top of the document
+\def\addressskip{} % The space between the two address (or phone/email) lines
+\def\sectionlineskip{\smallskip} % The space above the horizontal line for each section 
+\def\nameskip{\vspace{-0.5em}} % The space after your name at the top
+\def\sectionskip{} % The space after the heading section
+
+\makeatother % End internal command redefinitions
+
+%----------------------------------------------------------------------------------------
+%   DOCUMENT START
+%----------------------------------------------------------------------------------------
+\name{Abhishek Nagaraja \vspace{.2em} \hrule}
+
+\address{Arlington, Texas, USA - 76013 \textbullet\ work.abhishekn@gmail.com}
+\address{\href{https://www.linkedin.com/in/abhisheknagaraja/}{linkedin.com/in/abhisheknagaraja} \textbullet\ \href{https://www.abhishekn.in/}{www.abhishekn.in}}
+
+\begin{document}
+
+%----------------------------------------------------------------------------------------
+%   SUMMARY
+%----------------------------------------------------------------------------------------
+Detail-oriented and proactive \textbf{Business Analyst} with a strong foundation in \textbf{Requirements Elicitation}, \textbf{Process Modeling}, and \textbf{Data Storytelling}. Proven ability to support product lifecycles by translating business needs into clear \textbf{Functional Specifications} and \textbf{User Stories}. Expert in leveraging \textbf{Generative AI Tools}, \textbf{SQL}, and \textbf{Excel} to drive data-informed decision-making and optimize operational workflows.
+
+\begin{rSection}{Education}
+\begin{rSubsection}{University of Texas at Arlington}{Arlington, Texas, USA}{\textbf{Master of Science in Computer Science}}{Aug 2023 - May 2024}
+\item \textbf{Master of Science in Engineering Management} \hfill May 2024 - Current
+\end{rSubsection}
+
+\begin{rSubsection}{Jawaharlal Nehru Technological University}{Hyderabad, India}{\textbf{Bachelor of Technology in Computer Science and Engineering}}{Aug 2019 - July 2023}
+\item[] \vspace{-1em}
+\end{rSubsection}
+\end{rSection}
+
+%----------------------------------------------------------------------------------------
+%   WORK EXPERIENCE SECTION
+%----------------------------------------------------------------------------------------
+\begin{rSection}{Work Experience}
+
+\begin{rSubsection}
+{Program Manager Intern, University of Texas at Arlington - Texas, USA}{October 2023 - Present}{}{}
+\item[] \vspace{-0.5em}
+\begin{itemize}[left=-1.5em, labelsep=.1cm, labelwidth=.2cm, itemsep=0.0em]
+\item \textbf{Collaborated on end-to-end Requirements Gathering} for 'MavMarket', a campus marketplace scaling to \textbf{5,000+ users} and \textbf{200+ vendors}, by conducting stakeholder interviews and documenting use cases to ensure platform scalability.
+\item \textbf{Analyzed critical workflow bottlenecks} reducing operational overhead by \textbf{40\%}, by developing an \textbf{AI-powered Standard Operating Procedure (SOP)} that automated 10+ manual administrative tasks using \textbf{Generative AI tools}.
+\item \textbf{Presented data-driven strategic insights} through advanced visualization to improve stakeholder NPS by \textbf{35\%}, facilitating feedback loops and feature improvement sessions that directly influenced the product roadmap.
+\item \textbf{Coordinated complex project logistics} and milestones achieving \textbf{on-time delivery}, using predictive scheduling tools to manage a network of vendors and ensure alignment with rigid university academic calendars.
+\item \textbf{Documented comprehensive functional specifications} and granular \textbf{User Stories} to align the development team with program objectives, ensuring clear traceability from business needs to technical implementation.
+\item \textbf{Facilitated stakeholder communication sessions} to bridge the gap between technical constraints and business needs for university projects, negotiating feature trade-offs to maintain project scope and timelines.
+\end{itemize}
+\end{rSubsection}
+
+\begin{rSubsection}
+{Business Analyst Intern, NFC Solutions Private Limited - Hyderabad, India}{April 2022 - January 2023}{}{}
+\item[] \vspace{-0.5em}
+\begin{itemize}[left=-1.5em, labelsep=.1cm, labelwidth=.2cm, itemsep=0.0em]
+\item \textbf{Drafted high-fidelity Business Requirement Documents (BRDs)} and \textbf{Functional Specifications (FRDs)} for 4 high-priority technical projects, serving as the primary documentation source for engineering and QA teams.
+\item \textbf{Improved sprint velocity by 20\%} as measured by burndown charts, by mapping 'As-Is' and 'To-Be' processes as a \textbf{Proxy PO}, removing upstream blockers and clarifying acceptance criteria before sprint planning.
+\item \textbf{Validated system integrity} achieving \textbf{zero production defects}, by creating detailed data flow diagrams and executing rigorous \textbf{UAT test cases} that covered both happy paths and complex edge cases.
+\item \textbf{Analyzed CRM data and e-commerce order cycles} to identify efficiency gaps, proposing automation-driven solutions that streamlined the order-to-cash process and reduced manual data entry errors by 15%.
+\item \textbf{Managed the product backlog in Jira}, prioritizing features based on stakeholder value and \textbf{technical feasibility}, ensuring the development team always had a groomed backlog of high-impact work items ready for execution.
+\item \textbf{Conducted comprehensive gap analysis} to identify discrepancies between business requirements and current system capabilities, presenting data-backed findings to the leadership team to justify infrastructure investments.
+\end{itemize}
+\end{rSubsection}
+
+\begin{rSubsection}{Founder and Community Lead, e-DAM Community - Hyderabad, India}{March 2021 - January 2025}{}{}
+\item[] \vspace{-0.5em}
+\begin{itemize}[left=-1.5em, labelsep=.1cm, labelwidth=.2cm, itemsep=0.0em]
+\item \textbf{Spearheaded} community growth to \textbf{5,000+ members} by \textbf{performing Market Analysis} and \textbf{building a strategic network} of industry partners and student leaders.
+\item \textbf{Iterated} on curriculum content as measured by \textbf{high-value attendee satisfaction}, by \textbf{collecting feedback} and using \textbf{narrative data} from 200+ workshops to improve learning outcomes.
+\end{itemize}
+\end{rSubsection}
+
+\end{rSection}
+
+%----------------------------------------------------------------------------------------
+%   PROJECTS
+%----------------------------------------------------------------------------------------
+\begin{rSection}{Projects}
+
+\begin{rSubsection}{Thara: Multi-Agent AI Ecosystem}{}{}{}
+\item[] \vspace{-0.5em}
+\begin{itemize}[left=-1.5em, labelsep=.1cm, labelwidth=.2cm, itemsep=0.0em]
+\item \textbf{Documented} User Stories and Acceptance Criteria for \textbf{11 system components} as measured by \textbf{streamlined workflows}, for the end-to-end Thara multi-agent AI ecosystem.
+\item \textbf{Defined} Non-Functional Requirements (NFRs) as measured by \textbf{99.9\% system uptime}, by monitoring system stability and optimizing cloud resources.
+\end{itemize}
+\end{rSubsection}
+
+\begin{rSubsection}{Google Maps: Product Teardown}{}{}{}
+\item[] \vspace{-0.5em}
+\begin{itemize}[left=-1.5em, labelsep=.1cm, labelwidth=.2cm, itemsep=0.0em]
+\item \textbf{Validated} feature prioritization through \textbf{42 user interviews}, by \textbf{conducting Qualitative Research} to identify "Menu Accuracy" as a critical user pain point.
+\item \textbf{Secured} stakeholder buy-in as measured by \textbf{roadmap approval}, by \textbf{presenting a Business Case} via \textbf{compelling storytelling} backed by competitive analysis and user data.
+\end{itemize}
+\end{rSubsection}
+
+\end{rSection}
+
+%----------------------------------------------------------------------------------------
+%   SKILLS
+%----------------------------------------------------------------------------------------
+\begin{rSection}{Skills and Tools}
+\item[] \vspace{-0.5em}
+\begin{itemize}[left=-1.5em, labelsep=.1cm, labelwidth=.2cm, itemsep=0.0em]
+    \item \textbf{Business Analysis:} Requirements Elicitation, Documentation (BRD/FRD), Process Modeling (BPMN), Gap Analysis, UAT, Stakeholder Communication, \textbf{Data Storytelling}.
+    \item \textbf{Soft Skills:} \textbf{Network Building}, \textbf{Storytelling}, Problem Solving, Critical Thinking.
+    \item \textbf{Tools:} \textbf{Microsoft Office (Excel, Word, PowerPoint)}, \textbf{Google Workspace (Docs, Sheets)}, SQL, Power BI, Tableau, Jira, Confluence, Visio, Lucidchart, Figma.
+    \item \textbf{AI \& Tech:} \textbf{Generative AI (ChatGPT, Claude)} for Requirements Drafting, \textbf{AI-Driven Data Analysis}, SDLC, Agile/Scrum, API Concepts.
+    \item \textbf{Methodologies:}  Agile, Scrum, Waterfall.
+\end{itemize}
+\end{rSection}
+
+\begin{rSection}{Certifications}
+\item[] \vspace{-1em}
+\begin{itemize}[left=-1.5em, labelsep=.1cm, labelwidth=.2cm, itemsep=0.0em]
+\item Certified Scrum Product Owner (CSPO)
+\item Google: Data Analytics Specialization
+\item Google: Foundation of Project Management
+\end{itemize}
+\end{rSection}
+
+\end{document}

@@ -146,7 +146,7 @@ The current `Job_Automation` codebase establishes a powerful foundation for the 
 3. **The 3-Tier LLM Router (`llm_router.py`):** To ensure 100% uptime and cost efficiency, the system uses a tiered fallback mechanism:
    - **Tier 1 (Speed & Cost):** Gemini 2.0 Flash handles the bulk of continuous background evaluations.
    - **Tier 2 (Reliability Fallback):** OpenAI `gpt-4o-mini` catches any Rate Limit (429) errors from Tier 1.
-   - **Tier 3 (Local Failsafe):** Local Ollama `llama3.2` acts as a free, final safety net if cloud APIs fail.
+   - **Cloud Resiliency:** Hybrid cloud routing via Gemini and OpenRouter ensures high uptime.
 4. **Intelligent Output:** The system does not just score the job; it tells the student *exactly which of their specific resumes* (e.g., "Use the GTM Resume") yields the highest probability of an interview.
 
 ## 12. Analyzing JobRight's Sourcing & GitHub Strategy

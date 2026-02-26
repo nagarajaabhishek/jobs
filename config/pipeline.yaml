@@ -1,7 +1,10 @@
-# Pipeline configuration (optional). Override via env: PIPELINE_CONFIG path.
-# If missing, run_pipeline.py and evaluator use defaults below.
+# =================================================================
+# JOB SEARCH & EVALUATION CONFIGURATION
+# Modify this file to change search targets, limits, and job filters.
+# =================================================================
 
 sourcing:
+  # 1. SEARCH QUERIES
   queries:
     - "Product Manager"
     - "Project Manager"
@@ -11,31 +14,197 @@ sourcing:
     - "Scrum Master"
     - "Strategy Operations"
     - "GTM Manager"
+
+  # 2. LOCATIONS (Values are 'Results Wanted' per location)
   locations:
-    "United States": 80
-    "Dubai": 20
-    "Remote": 50
+    "United States": 50
+
+  # 3. PIPELINE LIMITS
   max_workers: 4
+  expand_ai_queries: false
+  use_ai_filter: true
   
-  # AI-Enhanced Sourcing
-  expand_ai_queries: true  # Use LLM to brainstorm search terms
-  use_ai_filter: true      # Use LLM to drop non-PM/PO/BA roles before sheet
-  # ATS job boards (add company slugs; 404s are skipped)
   ats_boards:
-    greenhouse: [canva, discord, figma]
-    lever: [netflix, palantir, discord]
-    ashby: [ashby, notion, figma, linear, vercel, ramp]
+    greenhouse: ["canva", "discord", "figma"]
+    lever: ["netflix", "palantir", "discord"]
+    ashby: ["ashby", "notion", "figma", "linear", "vercel", "ramp"]
 
 evaluation:
-  # Provider: 'openrouter' (Unified Cloud), 'hybrid' (OpenRouter -> Gemini -> local), 'gemini' (Direct API), or 'ollama' (Local only)
-  provider: hybrid
-  
-  # OpenRouter model (e.g. google/gemma-3-27b-it:free, deepseek/deepseek-r1)
-  openrouter_model: google/gemma-3-27b-it:free
+  provider: "gemini"
+  sourcing_model: "gemini-2.5-flash-lite"
+  gemini_model: "gemini-2.5-flash"
+  batch_eval_size: 10
+  sheet_batch_size: 50
+  limit: 50
 
-  # Ollama model used for local/fallback evaluation
-  ollama_model: qwen2.5:7b
-  
-  batch_eval_size: 4
-  sheet_batch_size: 25
-  limit: 300
+# =================================================================
+# JOB FILTERS
+# =================================================================
+
+candidate_constraints:
+  years_of_experience: 3.0
+  visa_status: "F-1 (Requires H1B Sponsorship)"
+  clearance: "None"
+
+filters:
+  # Title must contain one of these (case-insensitive)
+  inclusions:
+    - "product manager"
+    - "project manager"
+    - "program manager"
+    - "business analyst"
+    - "product owner"
+    - "scrum master"
+    - "agile coach"
+    - "gtm"
+    - "go-to market"
+    - "strategy"
+    - "operations analyst"
+    - "product lead"
+    - "project lead"
+    - "program lead"
+    - "delivery manager"
+    - "operations manager"
+    - "business operations"
+    - "chief of staff"
+    - "ba"
+    - "pm"
+    - "po"
+    - "tpm"
+    - "pmo"
+    - "scrum"
+    - "agile"
+
+  # Exclude jobs containing these (Seniority)
+  seniority_exclusions:
+    - "senior"
+    - "sr"
+    - "sr."
+    - "staff"
+    - "principal"
+    - "director"
+    - "vp"
+    - "head of"
+    - "lead"
+    - "manager ii"
+
+  # Exclude levels
+  level_exclusions:
+    - "intern"
+    - "internship"
+    - "co-op"
+    - "graduate intern"
+    - "student intern"
+
+  # Exclude unrelated career paths
+  unrelated_keywords:
+    - "nurse"
+    - "registered nurse"
+    - "rn"
+    - "physician"
+    - "driver"
+    - "cdl"
+    - "warehouse"
+    - "mechanic"
+    - "cashier"
+    - "architect"
+    - "software engineer"
+    - "backend"
+    - "frontend"
+    - "fullstack"
+    - "full stack"
+    - "account executive"
+    - "recruiter"
+    - "firmware"
+    - "hardware"
+    - "validation"
+    - "characterization"
+    - "testing engineer"
+    - "product engineer"
+    - "data analyst"
+
+  # Security Clearance
+  clearance_keywords:
+    - "clearance"
+    - "ts/sci"
+    - "secret clearance"
+    - "top secret"
+
+  # Location Regions (Allowed)
+  allowed_locations:
+    - "usa"
+    - "united states"
+    - "dubai"
+    - "uae"
+    - "remote"
+    - "us"
+    - ", al"
+    - ", ak"
+    - ", az"
+    - ", ar"
+    - ", ca"
+    - ", co"
+    - ", ct"
+    - ", de"
+    - ", fl"
+    - ", ga"
+    - ", hi"
+    - ", id"
+    - ", il"
+    - ", in"
+    - ", ia"
+    - ", ks"
+    - ", ky"
+    - ", la"
+    - ", me"
+    - ", md"
+    - ", ma"
+    - ", mi"
+    - ", mn"
+    - ", ms"
+    - ", mo"
+    - ", mt"
+    - ", ne"
+    - ", nv"
+    - ", nh"
+    - ", nj"
+    - ", nm"
+    - ", ny"
+    - ", nc"
+    - ", nd"
+    - ", oh"
+    - ", ok"
+    - ", or"
+    - ", pa"
+    - ", ri"
+    - ", sc"
+    - ", sd"
+    - ", tn"
+    - ", tx"
+    - ", ut"
+    - ", vt"
+    - ", va"
+    - ", wa"
+    - ", wv"
+    - ", wi"
+    - ", wy"
+    - ", dc"
+
+  # Forbidden Countries/Cities
+  forbidden_locations:
+    - "india"
+    - "uk"
+    - "london"
+    - "canada"
+    - "australia"
+    - "germany"
+    - "france"
+    - "singapore"
+    - "bangalore"
+    - "hyderabad"
+    - "toronto"
+    - "munich"
+    - "berlin"
+    - "dresden"
+    - "frankfurt"
+    - "europe"

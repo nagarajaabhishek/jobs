@@ -22,7 +22,8 @@ _default = {
         },
     },
     "evaluation": {
-        "ollama_model": "llama3.2",
+        "provider": "gemini",
+        "gemini_model": "gemini-1.5-pro-latest",
         "batch_eval_size": 4,
         "sheet_batch_size": 25,
         "limit": 300,
@@ -40,19 +41,31 @@ def load_pipeline_config():
     try:
         with open(path, "r") as f:
             data = yaml.safe_load(f) or {}
-        # Deep merge so partial YAML still gets defaults
+        
+        # Merge logical blocks
         out = _default.copy()
-        for key in ("sourcing", "evaluation"):
+        for key in ("sourcing", "evaluation", "filters"):
             if key in data:
-                out[key] = {**_default.get(key, {}), **data[key]}
+                # If it's a dict, merge it. If it's a list (unlikely here but safety), replace it.
+                if isinstance(_default.get(key), dict) and isinstance(data[key], dict):
+                    out[key] = {**_default.get(key, {}), **data[key]}
+                else:
+                    out[key] = data[key]
+            elif key not in out:
+                out[key] = {}
         return out
     except Exception:
         return _default
 
 
 def get_sourcing_config():
-    return load_pipeline_config()["sourcing"]
+    return load_pipeline_config().get("sourcing", _default["sourcing"])
 
 
 def get_evaluation_config():
-    return load_pipeline_config()["evaluation"]
+    return load_pipeline_config().get("evaluation", _default["evaluation"])
+
+
+def get_filters_config():
+    """Returns the filters section for dynamic loading in job_filters.py."""
+    return load_pipeline_config().get("filters", {})

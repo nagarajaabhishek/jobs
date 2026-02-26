@@ -3,7 +3,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from jobspy import scrape_jobs
 from src.core.google_sheets_client import GoogleSheetsClient
-from src.core.config import get_sourcing_config
+from src.core.config import get_sourcing_config, get_evaluation_config
 from src.core.job_filters import passes_sourcing_filter
 from src.scrapers.community_scraper import CommunityScraper
 from src.scrapers.jobright_scraper import JobrightScraper
@@ -15,6 +15,8 @@ from src.scrapers.ashby_scraper import AshbyScraper
 from src.core.llm_router import LLMRouter
 
 import pandas as pd
+import json
+import os
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -35,7 +37,18 @@ class SourcingAgent:
         self.remotive_scraper = RemotiveScraper(limit=100)
         self.remoteok_scraper = RemoteOKScraper(limit=80)
         self.ashby_scraper = AshbyScraper(boards=ats.get("ashby"))
+        self.ashby_scraper = AshbyScraper(boards=ats.get("ashby"))
         self.llm = LLMRouter()
+        
+        # Load Phase 1 Dense Matrix for Phase 2 Sniffing
+        self.dense_matrix = {}
+        matrix_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "data", "dense_master_matrix.json")
+        try:
+            if os.path.exists(matrix_path):
+                with open(matrix_path, "r") as f:
+                    self.dense_matrix = json.load(f)
+        except Exception as e:
+            logging.warning(f"Could not load dense matrix: {e}")
 
     def scrape_community_sources_once(self, queries=None):
         """
@@ -86,12 +99,12 @@ class SourcingAgent:
             jobs_dict = jobs.to_dict("records")
             return [
                 {
-                    "title": jd.get("title"),
-                    "company": jd.get("company"),
-                    "url": jd.get("job_url"),
-                    "location": jd.get("location"),
-                    "source": jd.get("site"),
-                    "description": jd.get("description", ""),
+                    "title": str(jd.get("title") or ""),
+                    "company": str(jd.get("company") or ""),
+                    "url": str(jd.get("job_url") or ""),
+                    "location": str(jd.get("location") or ""),
+                    "source": str(jd.get("site") or ""),
+                    "description": str(jd.get("description") or ""),
                 }
                 for jd in jobs_dict
             ]
@@ -99,7 +112,7 @@ class SourcingAgent:
             logging.warning(f"JobSpy failed for '{query}' in '{location}': {e}")
             return []
 
-    def scrape_jobspy_parallel(self, queries, locations, max_workers=4):
+    def scrape_jobspy_parallel(self, queries, locations, max_workers=4, use_ai_filter=False):
         """
         Run JobSpy for all (query, location) pairs in parallel.
         locations can be a list or a dict {location: results_wanted}.
@@ -123,11 +136,11 @@ class SourcingAgent:
                     batch = future.result()
                     if batch:
                         print(f"JobSpy '{q}' in '{loc}': {len(batch)} jobs → saving...")
-                        self.normalize_and_save(batch)
+                        self.normalize_and_save(batch, use_ai_filter=use_ai_filter)
                         total += len(batch)
                 except Exception as e:
                     logging.warning(f"Task ({q}, {loc}) failed: {e}")
-        print(f"JobSpy parallel run complete. Total jobs saved from JobSpy: {total}.")
+        print(f"JobSpy parallel run complete. Total jobs processed from JobSpy: {total}.")
         return total
 
     def expand_queries(self, base_roles=["Product Manager", "Business Analyst", "Scrum Master"]):
@@ -257,32 +270,41 @@ class SourcingAgent:
 
     def ai_sniff_relevance(self, job):
         """
-        Optional AI pre-filter: uses a fast/cheap LLM via OpenRouter to 'sniff' if a job is actually 
-        within our target role families (PM, PO, BA, SM, GTM).
-        Returns (True, "Role Matched") or (False, Reason).
+        AI pre-filter: uses a fast/cheap LLM via OpenRouter to 'sniff' if a job violates
+        the hard constraints from our Phase 1 Dense Matrix (YOE, Clearance, Role match).
+        Returns (True, "Reason") or (False, "Reason").
         """
         title = job.get("title", "")
-        desc = job.get("description", "")[:500] # Snippet for speed/cost
+        desc = job.get("description", "")[:800] # Slightly larger snippet for YOE search
         
-        system_prompt = """
-        You are a recruitment classifier. Analyze the Job Title and Snippet.
-        Is this a role for a Product Manager, Project Manager, Program Manager, Business Analyst, 
-        Product Owner, Scrum Master, or GTM/Strategy Operations?
+        # Extract traits from Phase 1 matrix (default safe fallback if missing)
+        traits = self.dense_matrix.get("global_traits", {})
+        yoe = traits.get("years_of_experience", 3)
+        clearance = traits.get("clearance", "None")
         
-        Answer ONLY: YES or NO.
+        system_prompt = f"""
+        You are a recruitment classifier. Analyze the Job Title and Snippet against these HARD CONSTRAINTS:
+        1. User has {yoe} Years of Experience (YOE). If the job strictly demands significantly more (e.g., 5+, 7+, or Senior/Lead roles), reject it.
+        2. User Security Clearance: {clearance}. If the job strictly requires an active clearance (Secret, Top Secret, TS/SCI), reject it.
+        3. Role Relevance: Is this a Product Manager, Project Manager, Program Manager, Business Analyst, Product Owner, Scrum Master, or GTM/Strategy Operations role? If no, reject it.
+        
+        Answer ONLY YES or NO.
         """
         user_prompt = f"Title: {title}\nSnippet: {desc}"
         
-        # We can force a cheap model for this in the future, for now uses router default
-        text, engine = self.llm.generate_content(system_prompt, user_prompt)
+        # We can force a cheap model for this (Gemini 2.5 Flash-Lite)
+        eval_cfg = get_evaluation_config()
+        sourcing_model = eval_cfg.get("sourcing_model", "gemini-2.5-flash-lite")
+        
+        text, engine = self.llm.generate_content(system_prompt, user_prompt, model=sourcing_model)
         
         if engine == "FAILED":
             return True, "LLM failed - allowing through"
             
         result = text.strip().upper()
         if "YES" in result:
-            return True, f"AI confirmed relevance ({engine})"
-        return False, f"AI sniffed mismatch ({engine})"
+            return True, f"AI confirmed relevance ({engine} - {sourcing_model})"
+        return False, f"AI rejected: Sniffer Mismatch ({engine} - {sourcing_model})"
 
     def normalize_and_save(self, raw_jobs, use_ai_filter=False):
         """
@@ -307,17 +329,19 @@ class SourcingAgent:
         # 3. Final Normalize & Tagging
         clean_jobs = []
         for job in filtered_raw_jobs:
+            if not job:
+                continue
             # Optional: Add tags to the description/metadata if needed, 
             # Or just store them in a way the evaluator can see.
             # For now, we'll just log them or add to a side-car field.
             tags = self.tag_job(job)
             
             clean_job = {
-                "title": job.get("title"),
-                "company": job.get("company"),
-                "url": job.get("url") or job.get("job_url"),
-                "location": job.get("location"),
-                "source": job.get("source") or job.get("site"),
+                "title": job.get("title", ""),
+                "company": job.get("company", ""),
+                "url": job.get("url") or job.get("job_url", ""),
+                "location": job.get("location", ""),
+                "source": job.get("source") or job.get("site", "Unknown"),
                 "description": job.get("description", ""),
                 "tags": tags # NEW field for Sheets
             }

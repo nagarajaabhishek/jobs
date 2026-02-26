@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Link, useLocation } from 'react
 import { BrainCircuit, Menu, X } from 'lucide-react';
 import StudentLanding from './pages/StudentLanding';
 import UniversityLanding from './pages/UniversityLanding';
+import Architecture from './pages/Architecture';
 import './index.css';
 
 function Navigation() {
@@ -23,8 +24,9 @@ function Navigation() {
 
         {/* Desktop Links */}
         <div className="nav-links-desktop">
-          <Link to="/" style={{ color: !isUni ? 'white' : 'var(--text-secondary)' }} className="hover-text-white transition-colors">For Students</Link>
+          <Link to="/" style={{ color: !isUni && location.pathname !== '/architecture' ? 'white' : 'var(--text-secondary)' }} className="hover-text-white transition-colors">For Students</Link>
           <Link to="/for-universities" style={{ color: isUni ? 'white' : 'var(--text-secondary)' }} className="hover-text-white transition-colors">For Universities</Link>
+          <Link to="/architecture" style={{ color: location.pathname === '/architecture' ? 'white' : 'var(--text-secondary)' }} className="hover-text-white transition-colors">Architecture Engine</Link>
           <button className="btn-secondary" style={{ padding: '8px 16px' }}>Sign In</button>
         </div>
 
@@ -36,8 +38,9 @@ function Navigation() {
 
       {/* Mobile Menu Overlay */}
       <div className={`mobile-menu-overlay ${isOpen ? 'open' : ''}`}>
-        <Link to="/" onClick={closeMenu} className={!isUni ? 'active' : ''}>For Students</Link>
+        <Link to="/" onClick={closeMenu} className={!isUni && location.pathname !== '/architecture' ? 'active' : ''}>For Students</Link>
         <Link to="/for-universities" onClick={closeMenu} className={isUni ? 'active' : ''}>For Universities</Link>
+        <Link to="/architecture" onClick={closeMenu} className={location.pathname === '/architecture' ? 'active' : ''}>Architecture Engine</Link>
         <button className="btn-primary" style={{ width: '100%', marginTop: '20px' }}>Sign In</button>
       </div>
     </nav>
@@ -55,6 +58,7 @@ function App() {
             <Route path="/" element={<StudentLanding />} />
             <Route path="/for-students" element={<StudentLanding />} />
             <Route path="/for-universities" element={<UniversityLanding />} />
+            <Route path="/architecture" element={<Architecture />} />
           </Routes>
         </main>
 

@@ -1,0 +1,20 @@
+# Job Automation Project Rules
+
+These rules govern the behavior of the AI agent and the execution of the pipeline.
+
+## 🛡 Stability & Costs
+1.  **Local-First Policy**: ALWAYS prioritize `ollama` as the LLM provider. Only use cloud providers (Gemini/OpenRouter) if specifically requested by the user or as a verified emergency backup.
+2.  **No Cost Surprises**: Never run large batches on cloud-based models without explicit user confirmation of the estimated cost.
+
+## 📊 Performance & UI
+3.  **High-Frequency Sync**: The `JobEvaluator` must sync with Google Sheets every **2-5 jobs** to ensure real-time progress visibility.
+4.  **Sourcing Priority**: Prioritize JobSpy (LinkedIn/Indeed/Glassdoor) over Jobright to ensure direct application links are visible in the sheet.
+
+## 📁 File Organization
+5.  **Clean Workspace**: Keep the root directory clear of diagnostic or temporary scripts. All new utilities must be placed in the `scripts/` hierarchy.
+6.  **SOP Adherence**: Follow the Standard Operating Procedures in `.agent/workflows/` for all maintenance and debugging tasks.
+
+## 🔍 Accuracy
+7.  **Score Calibration**: Evaluations must use the structured 0-100 Conviction Score. 90-100 = 🔥 Auto-Apply, 70-89 = ✅ Strong Match.
+8.  **Mandatory Data Pillars**: Every evaluation MUST populate **Reasoning, H1B Sponsorship, Recommended Resume, and Skill Gaps**. These are codified code-level requirements in the mapping layer.
+9.  **H1B Transparency**: Explicitly flag sponsorship requirements in the `H1B Sponsorship` column to avoid wasted application effort.

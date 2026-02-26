@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { BrainCircuit, Briefcase, Network, ArrowRight, CheckCircle2, FileText, Target, Map, Database, GitBranch, GraduationCap } from 'lucide-react';
 import CompetitiveTable from '../components/CompetitiveTable';
 import FAQ from '../components/FAQ';
+import ArchitectureSection from '../components/ArchitectureSection';
 
 export default function StudentLanding() {
     useEffect(() => {
@@ -409,6 +410,9 @@ export default function StudentLanding() {
                     </div>
                 </div>
             </section>
+
+            {/* AI Teaser Section */}
+            <ArchitectureSection />
 
             {/* CTA Validation Section */}
             <section className="cta-section" style={{ paddingBottom: '60px' }}>

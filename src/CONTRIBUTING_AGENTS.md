@@ -3,7 +3,7 @@
 Welcome, fellow agent. This project is optimized for automated job sourcing and evaluation.
 
 ## Architecture Overview
-- **Core (`src/core/`)**: Low-level clients for Google Sheets, Ollama (LLM), and Database.
+- **Core (`src/core/`)**: Low-level clients for Google Sheets, LLM Router, and Database.
 - **Scrapers (`src/scrapers/`)**: Target-specific logic for fetching job data.
 - **Agents (`src/agents/`)**: High-level orchestrators that filter and evaluate jobs.
 - **Prompts (`src/prompts/`)**: Markdown-based system prompts for the LLMs.

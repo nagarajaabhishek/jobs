@@ -1,7 +1,7 @@
 # Application Grade: Job Automation Pipeline
 
 **Scope:** Evaluation of the application as originally developed (prior to the recent chat’s evals, calibration, and efficiency changes).  
-**Purpose (from README):** *An automated system for sourcing, filtering, and evaluating job postings using local LLMs (Ollama) and Google Sheets.*
+**Purpose (from README):** *An automated system for sourcing, filtering, and evaluating job postings using Gemini 1.5 Pro and Google Sheets.*
 
 ---
 
@@ -17,7 +17,7 @@
 | **Filtering** | ✅ Rule-based filter (title, location, seniority, exclusions) with logging. |
 | **Evaluating** | ✅ LLM-based evaluation with structured output (Match Type, Recommended Resume, H1B, etc.). |
 | **Google Sheets** | ✅ Daily tab, add jobs, dedupe by URL, batch updates, sort by match priority. |
-| **Local LLM** | ✅ Ollama integrated; prompt + profile loaded from files. |
+| **LLM Engine** | ✅ Unified Cloud interface (Gemini/OpenRouter) integrated. |
 
 **Deductions:** Evaluation quality was under-specified (no evals or calibration), so “evaluating” was only partially validated. Sponsorship agent was broken (wrong imports, missing `self.llm`), so that part of the product did not run.
 
@@ -34,7 +34,7 @@
 **Weaknesses:**
 - `LocalDatabase` is never used; pipeline is Sheets-only. Either use it or remove to avoid confusion.
 - Sponsorship agent lives in `agents/` but is not wired into the main pipeline and was broken at the call site (`self.llm` undefined).
-- No shared interface for “LLM that returns (text, engine)”—each consumer does its own thing (Ollama subprocess vs Gemini client).
+- No shared interface for “LLM that returns (text, engine)”—each consumer does its own thing.
 
 ---
 
@@ -65,7 +65,7 @@
 **Weaknesses:**
 - No retries for transient failures (network, Sheets rate limits).
 - `get_existing_urls()` ran on every `add_jobs()`, causing heavy repeated reads when adding many batches.
-- One subprocess per evaluation (Ollama) added process overhead and no connection reuse.
+- Previous evaluation logic lacked efficient connection reuse.
 
 ---
 
@@ -86,12 +86,12 @@
 ## 6. Testing — **C+**
 
 **Strengths:**
-- Test files exist for sheet client, Ollama/evaluator, and models.
-- Root-level `test_sheet.py` and `test_ollama_logic.py` give quick manual checks.
+- Test files exist for sheet client, evaluator, and models.
+- Root-level `test_sheet.py` and evaluation logic tests give quick manual checks.
 
 **Weaknesses:**
 - Tests used incorrect imports (no `src.`), so they failed when run from project root.
-- test_ollama referenced `evaluator.llm.openai_client`, which doesn’t exist in the Ollama-only design.
+- Previous tests referenced non-existent client attributes.
 - No automated tests for filter logic, parser, or pipeline flow; no golden-set evals for Match Type.
 
 ---
@@ -148,8 +148,8 @@
 |--------|--------|
 | Run Community/Jobright/Arbeitnow/ATS once per pipeline | Done (earlier) |
 | Parallel JobSpy (thread pool), single evaluation pass | Done (earlier) |
-| Batch LLM evaluation (e.g. 4 jobs per call), Ollama HTTP API, URL cache, larger sheet batch | Done (earlier) |
+| Batch LLM evaluation (e.g. 4 jobs per call), Cloud API, URL cache, larger sheet batch | Done (earlier) |
 | Config file for queries, locations, batch sizes, workers | Done below |
-| `.env.example` and env for profile path / Ollama host / API keys | Done below |
+| `.env.example` and env for profile path / API keys | Done below |
 | Profile path from config or env; startup check if profile missing | Done below |
 | Update CONTRIBUTING: batch size 25, parallel sourcing | Done below |

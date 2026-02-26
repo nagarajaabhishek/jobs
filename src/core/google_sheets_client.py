@@ -119,15 +119,14 @@ class GoogleSheetsClient:
                     "Match Type",      # I
                     "Recommended Resume", # J
                     "H1B Sponsorship", # K
-                    "Location Verification", # L
+                    "Reasoning",       # L
                     "Missing Skills",  # M
-                    "Applied? (Y/N)",   # N
-                    "Job Description"  # O
+                    "Applied? (Y/N)"    # N
                 ]
                 self.sheet.append_row(headers)
                 
                 # Format headers
-                self.sheet.format('A1:O1', {'textFormat': {'bold': True}})
+                self.sheet.format('A1:N1', {'textFormat': {'bold': True}})
 
 
 
@@ -250,9 +249,8 @@ class GoogleSheetsClient:
         applied = self.get_applied_urls()
         seen = existing | applied
         
-        # Get/Create headers for dynamic fields
-        headers = [h.strip() for h in self.sheet.row_values(1)]
-        tags_col = self._get_or_create_col_index(self.sheet, "Sourcing Tags", headers)
+        # Tags are no longer stored in Sheets; they are parsed only
+        # Sourcing Tags column is redundant since we have Reasoning
         
         new_rows = []
         jd_cache_updates = {}
@@ -266,7 +264,7 @@ class GoogleSheetsClient:
                 jd_cache_updates[canonical] = desc[:50000]
             
             # Basic row structure (Fixed A-G)
-            row = [""] * max(tags_col, 13) # ensure enough space
+            row = [""] * 14 # ensure enough space
             row[0] = "NEW"
             row[1] = job.get("title", "")
             row[2] = job.get("company", "")
@@ -275,10 +273,6 @@ class GoogleSheetsClient:
             row[5] = job.get("source", "Unknown")
             row[6] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             
-            # Add Tags at the dynamic index
-            if tags_col > 0:
-                row[tags_col - 1] = job.get("tags", "")
-                
             new_rows.append(row)
             seen.add(canonical)
             
@@ -383,17 +377,26 @@ class GoogleSheetsClient:
         score_col = self._get_or_create_col_index(worksheet, "Apply Score", headers)
         resume_col = self._get_or_create_col_index(worksheet, "Recommended Resume", headers)
         h1b_col = self._get_or_create_col_index(worksheet, "H1B Sponsorship", headers)
-        loc_col = self._get_or_create_col_index(worksheet, "Location Verification", headers)
+        reason_col = self._get_or_create_col_index(worksheet, "Reasoning", headers)
         skills_col = self._get_or_create_col_index(worksheet, "Missing Skills", headers)
         
         cells_to_update = []
-        for row_index, match_type, recommended, h1b, loc_ver, missing, score in updates:
+        for row_index, match_type, recommended, h1b, loc_ver, missing, score, reasoning in updates:
+            # Note: loc_ver is passed but we merge into reasoning if it has nuance
+            final_reason = reasoning
+            if loc_ver and loc_ver.lower() not in ["confirmed", "unknown", "—", ""]:
+                # If reasoning is N/A or empty, just show location. Otherwise, prefix it nicely.
+                if not reasoning or reasoning == "N/A":
+                    final_reason = f"LOC: {loc_ver}"
+                else:
+                    final_reason = f"[{loc_ver}] {reasoning}"
+
             cells_to_update.append(gspread.Cell(row=row_index, col=1, value="EVALUATED"))
             cells_to_update.append(gspread.Cell(row=row_index, col=match_col, value=match_type))
             cells_to_update.append(gspread.Cell(row=row_index, col=score_col, value=score))
             cells_to_update.append(gspread.Cell(row=row_index, col=resume_col, value=recommended))
             cells_to_update.append(gspread.Cell(row=row_index, col=h1b_col, value=h1b))
-            cells_to_update.append(gspread.Cell(row=row_index, col=loc_col, value=loc_ver))
+            cells_to_update.append(gspread.Cell(row=row_index, col=reason_col, value=final_reason))
             cells_to_update.append(gspread.Cell(row=row_index, col=skills_col, value=missing))
 
             

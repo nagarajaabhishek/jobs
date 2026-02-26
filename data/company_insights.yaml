@@ -1,0 +1,178 @@
+Arrowhead Programs:
+  sentiment: Identified
+  tech_stack:
+  - N/A
+Broadcom:
+  sentiment: Identified
+  tech_stack:
+  - N/A
+Brown & Brown:
+  sentiment: Identified
+  tech_stack:
+  - N/A
+Capital Rx:
+  sentiment: Identified
+  tech_stack:
+  - N/A
+Caterpillar:
+  sentiment: Identified
+  tech_stack:
+  - Unknown
+Cline:
+  sentiment: Identified
+  tech_stack:
+  - Unknown
+DLA Careers:
+  sentiment: Identified
+  tech_stack:
+  - N/A
+Giga:
+  sentiment: Identified
+  tech_stack:
+  - N/A
+Givelify:
+  sentiment: Identified
+  tech_stack:
+  - Unknown
+Google:
+  sentiment: Identified
+  tech_stack:
+  - N/A
+HP:
+  sentiment: Identified
+  tech_stack:
+  - AI
+  - Agile
+  - Workflow Automation
+Hiscox:
+  sentiment: Identified
+  tech_stack:
+  - N/A
+IXL Learning:
+  sentiment: Identified
+  tech_stack:
+  - N/A
+ImageTrend:
+  sentiment: Identified
+  tech_stack:
+  - N/A
+Intellisoft Technologies:
+  sentiment: Identified
+  tech_stack:
+  - Unknown
+Jiffy.com:
+  sentiment: Identified
+  tech_stack:
+  - Unknown
+Link Logistics Real Estate:
+  sentiment: Identified
+  tech_stack:
+  - Unknown
+Medline Industries:
+  sentiment: Identified
+  tech_stack:
+  - Microsoft Excel
+  - Microsoft PowerPoint
+  - Microsoft Word
+Mindex:
+  sentiment: Identified
+  tech_stack:
+  - Salesforce Service Cloud
+Nike:
+  sentiment: Identified
+  tech_stack:
+  - N/A
+Nordson Corporation:
+  sentiment: Identified
+  tech_stack:
+  - N/A
+Patriot Mobile:
+  sentiment: Identified
+  tech_stack:
+  - Unknown
+Pearson:
+  sentiment: Identified
+  tech_stack:
+  - N/A
+Per Scholas:
+  sentiment: Identified
+  tech_stack:
+  - AWS
+  - Angular
+  - Azure
+  - CI/CD
+  - Docker
+  - GCP
+  - Java
+  - JavaScript
+  - Kubernetes
+  - NodeJS
+  - React
+Plaid:
+  sentiment: Identified
+  tech_stack:
+  - N/A
+Pratt Industries:
+  sentiment: Identified
+  tech_stack:
+  - N/A
+Prime Healthcare:
+  sentiment: Identified
+  tech_stack:
+  - N/A
+Resolve Tech Solutions:
+  sentiment: Identified
+  tech_stack:
+  - Unknown
+State Street:
+  sentiment: Identified
+  tech_stack:
+  - Agile development tools
+  - JIRA
+State of Wisconsin:
+  sentiment: Identified
+  tech_stack:
+  - N/A
+StubHub:
+  sentiment: Identified
+  tech_stack:
+  - N/A
+T-Mobile:
+  sentiment: Identified
+  tech_stack:
+  - N/A
+Texas Health and Human Services Commission:
+  sentiment: Identified
+  tech_stack:
+  - Agile
+  - Product Backlog Management
+  - SAFe
+The Home Depot:
+  sentiment: Identified
+  tech_stack:
+  - Azure DevOps
+  - Jira
+  - ServiceNow
+TomoCredit:
+  sentiment: Identified
+  tech_stack:
+  - Unknown
+Topflight Apps:
+  sentiment: Identified
+  tech_stack:
+  - Claude Code
+  - Cursor
+  - v0
+Wells Fargo:
+  sentiment: Identified
+  tech_stack:
+  - Confluence
+  - Jira
+Zelis:
+  sentiment: Identified
+  tech_stack:
+  - Unknown
+ePremium Insurance:
+  sentiment: Identified
+  tech_stack:
+  - Unknown

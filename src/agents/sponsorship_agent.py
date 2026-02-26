@@ -13,7 +13,7 @@ load_dotenv()
 
 class SponsorshipAgent:
     def __init__(self):
-        # We now use the unified LLMRouter (OpenRouter -> Gemini -> Ollama)
+        # We now use the unified LLMRouter (OpenRouter -> Gemini)
         self.llm = LLMRouter()
         self.sheets_client = GoogleSheetsClient()
         

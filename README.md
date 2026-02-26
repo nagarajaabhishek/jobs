@@ -1,47 +1,62 @@
 # Job Automation Pipeline
 
-An automated system for sourcing, filtering, and evaluating job postings using **OpenRouter (Unified Cloud)**, Gemini, and local LLMs (Ollama).
+An automated system for sourcing, filtering, and evaluating job postings using **Gemini 1.5 Pro** and **OpenRouter (Unified Cloud)**.
 
-## Architecture
+## Master Architecture
 ```mermaid
 graph TD
-    subgraph Sourcing ["1. Sourcing Layer"]
-        A[Sourcing Agent] --> B[Scrapers]
-        B --> C[JobSpy: LinkedIn/Indeed/Google]
-        B --> D[Community & GitHub Repos]
-        A --> E{AI Pre-filter & Tagging}
-        E -- Pass --> F[Google Sheets Client]
+    subgraph Sourcing ["1. Sourcing Layer (High-Throughput)"]
+        A[Sourcing Agent] --> B[JobSpy: LinkedIn/Indeed/Google]
+        A --> C[Custom Scrapers: ATS/GH/Lever/Remotive]
+        B & C --> D{AI Pre-filter & Tagging}
+        D -- "Pass (Sniffed)" --> E[Google Sheets Client]
+        D -- Reject --> F[Discard]
     end
 
-    subgraph Evaluation ["2. Evaluation Layer (Hybrid)"]
-        G[Evaluation Agent] --> H[LLM Router]
-        H -- Primary --> I[OpenRouter / Cloud Bridge]
-        H -- Fallback --> J[Gemini 1.5 API]
-        H -- Private --> K[Local Ollama / Qwen]
-        I --> L[Match Scoring 2.0]
-        J --> L
-        K --> L
-        M[Master Context & Role Specs] --> G
+    subgraph Intelligence ["2. Context & Strategic Nudges"]
+        H[80/20 Location Prioritization] --> E
+        I[Sponsorship Verification Loop] --> J
+        K[Master Context & PDF Role Specs] --> G
+        L[JD Cache: Local JSON Store] --> G
     end
 
-    F --> N[(Google Sheet)]
-    L -- SSOT --> F
+    subgraph Logic ["3. Evaluation Layer (Cloud)"]
+        G[Evaluation Agent] --> M[LLM Router]
+        M -- Primary --> N[Gemini 1.5 Pro API]
+        M -- Alternative --> O[OpenRouter / Cloud Bridge]
+        N & O --> Q[Match Scoring 2.0 Rubric]
+        J[Sponsorship Agent] --> G
+    end
+
+    subgraph Data ["4. Storage & Harvesting"]
+        E --> R[(Google Sheet)]
+        Q -- SSOT Verdict --> E
+        Q -- Harvesting --> S[Skill Gaps / Tech Stacks / Salaries]
+    end
+
+    style M fill:#f9f,stroke:#333,stroke-width:2px
+    style D fill:#bbf,stroke:#333,stroke-width:2px
 ```
 
 ## Features
+- **Target-Driven Interleaved Pipeline**: Restructured to source and evaluate in 10/10 batches, providing immediate results and exiting once 50 "Must Apply" matches are found.
+- **Dual-Model Strategy**:
+    - **Sourcing/Sniffing**: Powered by `gemini-2.5-flash-lite` for ultra-low-cost relevance checks.
+    - **Deep Matching**: Powered by `gemini-2.0-flash` for high-fidelity evaluation and scoring.
 - **Unified Cloud Bridge**: One API key (OpenRouter) to access any model (Claude, DeepSeek, Gemini).
 - **AI-Enhanced Sourcing**: 
     - **Smart Sniffing**: Drops irrelevant roles before they hit the sheet.
     - **Query Expansion**: Brainstorms search terms for better coverage.
-    - **Dynamic Tagging**: Auto-tags jobs with Style, Seniority, and Industry.
-- **Tiered Resilience**: Hybrid architecture with automated fallback (OpenRouter -> Gemini -> local Ollama).
+- **Cloud-Powered Performance**: Deep evaluation with robust 429 rate limit resilience.
 
 ## Project Structure
-- `src/core/`: Shared clients (Sheets, `LLMRouter`).
+- `src/agents/`: Business logic (Sourcing, Evaluation).
+- `src/core/`: Shared clients (Sheets, `LLMRouter`, Config).
 - `src/scrapers/`: Individual job site scrapers.
-- `src/agents/`: Business logic (Sourcing, Evaluation, Sponsorship).
 - `src/prompts/`: LLM System Prompts.
-- `config/`: Credentials and local configuration.
+- `scripts/`: Utility scripts categorized into `diagnostics/`, `tools/`, and `legacy/`.
+- `config/`: Credentials, `pipeline.yaml`, and local JD cache.
+- `data/`: Profiles, Master Context, and harvested insights.
 
 ## Usage
 Run the full pipeline:
@@ -54,7 +69,7 @@ For detailed agent instructions, see [.agent/workflows/job_pipeline.md](.agent/w
 - **Environment**: Copy `.env.example` to `.env`. Required: `OPENROUTER_API_KEY`, `GEMINI_API_KEY` (fallback).
 - **Pipeline**: Edit `config/pipeline.yaml` to change:
     - `sourcing`: Queries, `expand_ai_queries`, `use_ai_filter`.
-    - `evaluation`: `provider` (hybrid/openrouter/gemini/ollama), `openrouter_model`.
+    - `evaluation`: `provider` (openrouter/gemini), `gemini_model`, `openrouter_model`.
 
 ## Job descriptions (JD)
 - **Local cache**: Full JDs are stored in `config/jd_cache.json` (keyed by canonical URL) to avoid cluttering Google Sheets while keeping evaluation context high.
