@@ -5,44 +5,76 @@ import '../index.css';
 
 const pipelineChart = `
 flowchart TD
-    subgraph Sourcing["Phase 1: High-Throughput Sourcing"]
-        A["Direct ATS Scraping"]
-        B["JobRight / LinkedIn"]
-        
-        A --> D{"Gemini 2.5 Flash-Lite"}
-        B --> D
-        D -- "Discard Out of Scope" --> Z(("Drop"))
-        D -- "Valid Jobs" --> E[("Local JSON Cache")]
+    %% Phase 0: Inputs
+    subgraph Inputs["Base Configurations"]
+        H[("University Syllabus YAML")]
+        I[("Master Profile YAML")]
+        T[("LaTeX Base Templates")]
     end
 
+    %% Phase 1: Sourcing
+    subgraph Sourcing["Phase 1: Sourcing & Filtering"]
+        A["Direct ATS Scrapers"]
+        B["JobSpy / Aggregators"]
+        A --> C{"H1B Sponsorship Probe"}
+        B --> C
+        C -- "No" --> Z(("Drop"))
+        C -- "Yes" --> D{"Location Priority Router"}
+        D -- "Non-Target" --> Z
+        D -- "Target Hubs" --> E{"Gemini 2.5 Flash-Lite"}
+        E -- "Lacks Keywords" --> Z
+        E -- "Valid Jobs" --> F[("Local JSON Cache")]
+    end
+
+    %% Phase 2: Context
     subgraph Injection["Phase 2: Context Injection"]
-        E --> F["LangGraph State Machine"]
-        G[("University Syllabus YAML")] --> F
-        H[("Master Profile YAML")] --> F
+        F --> G["LangGraph State Machine"]
+        H --> G
+        I --> G
     end
 
-    subgraph Evaluation["Phase 3: Deep Evaluation"]
-        F --> J["Gemini 2.0 Flash Rubric"]
-        J -. "Fallback / 429" .-> K["OpenRouter Unified Bridge"]
+    %% Phase 3: AI Eval
+    subgraph Evaluation["Phase 3: Deep AI Evaluation"]
+        G --> J["Gemini 2.0 Flash Rubric"]
+        J -. "Fallback" .-> K["OpenRouter Unified Bridge"]
+        J & K --> L(["Match Score %"])
+        J & K --> M(["Prescriptive Gap Analysis"])
+    end
+
+    %% Phase 4: Artifacts
+    subgraph Artifacts["Phase 4: Artifact Generation"]
+        L & M --> O["Tailoring Engine"]
+        T --> O
+        O --> P[("Targeted PDF Resume")]
+        O --> Q[("Custom Cover Letter")]
+    end
+
+    %% Phase 5: UI & Distribution
+    subgraph Distribution["Phase 5: Product Interfaces"]
+        L & M --> N[("Google Sheets SSOT")]
+        N --> U["JobsProof B2C (Student Feed)"]
+        N --> V["JobsProof B2B (University Analytics)"]
         
-        J --> L(["Deterministic Match Score %"])
-        K --> L
-        J --> M(["Prescriptive Gap Analysis"])
-        K --> M
+        P & Q --> S["Auto-Apply Automation"]
     end
-
-    L --> N[("Google Sheets SSOT")]
-    M --> N
 
     classDef source fill:#1e1e24,stroke:#6366f1,stroke-width:2px,color:#fff
+    classDef filter fill:#0d1117,stroke:#14b8a6,stroke-width:2px,color:#fff
     classDef agent fill:#0d1117,stroke:#10b981,stroke-width:2px,color:#fff
     classDef eval fill:#0d1117,stroke:#f59e0b,stroke-width:2px,color:#fff
+    classDef generator fill:#0d1117,stroke:#a855f7,stroke-width:2px,color:#fff
+    classDef ui fill:#1e1e24,stroke:#ec4899,stroke-width:2px,color:#fff
     classDef db fill:#0d1117,stroke:#3b82f6,stroke-width:2px,color:#fff
+    classDef drop fill:#2d1b1b,stroke:#ef4444,stroke-width:2px,color:#fca5a5
 
     class A,B source
-    class D,F agent
+    class C,D,E filter
+    class G,O agent
     class J,K eval
-    class E,G,H,N db
+    class P,Q generator
+    class S,U,V ui
+    class F,H,I,T,N db
+    class Z drop
 `;
 
 export default function Architecture() {
