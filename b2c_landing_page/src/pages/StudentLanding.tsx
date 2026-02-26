@@ -19,11 +19,14 @@ export default function StudentLanding() {
                 <div className="container hero-grid">
 
                     {/* Left: Copy */}
-                    <div className="hero-content animate-fade-up">
+                    <div className="hero-content animate-fade-up" style={{ width: '100%', maxWidth: '540px', zIndex: 10 }}>
                         <div className="student-tag">
                             <CheckCircle2 size={16} /> Beta Exclusive: UT System
                         </div>
-                        <h1 style={{ fontSize: '3rem', whiteSpace: 'nowrap' }}>Stop Guessing. <span className="text-gradient">Start Interviewing.</span></h1>
+                        <h1 style={{ fontSize: '3.2rem', lineHeight: '1.15', marginBottom: '1.25rem' }}>
+                            <span style={{ whiteSpace: 'nowrap' }}>Stop Guessing.</span><br />
+                            <span className="text-gradient" style={{ whiteSpace: 'nowrap' }}>Start Interviewing.</span>
+                        </h1>
 
                         <div className="problem-statement" style={{ background: 'rgba(245, 158, 11, 0.05)', borderLeft: '3px solid var(--warning)', padding: '12px 16px', borderRadius: '0 8px 8px 0', marginBottom: '20px' }}>
                             <strong style={{ color: 'var(--warning)', display: 'block', marginBottom: '4px', fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>The Problem</strong>
@@ -46,7 +49,7 @@ export default function StudentLanding() {
                     </div>
 
                     {/* Right: The Product UI Mockup */}
-                    <div className="app-mockup animate-fade-up delay-2" style={{ transform: 'perspective(1000px) rotateY(-5deg) scale(1.1)', transformOrigin: 'right center' }}>
+                    <div className="app-mockup animate-fade-up delay-2" style={{ width: '100%', minWidth: '550px', maxWidth: '650px', transform: 'perspective(1000px) rotateY(-5deg) scale(1.05)', transformOrigin: 'right center' }}>
                         <div className="mockup-header">
                             <div className="dot dot-r"></div>
                             <div className="dot dot-y"></div>
