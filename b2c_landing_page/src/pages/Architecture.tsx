@@ -1,6 +1,49 @@
 import { useEffect } from 'react';
 import { Database, Network, BrainCircuit, ShieldCheck, GitBranch, ArrowRight, Activity, Globe, LayoutTemplate } from 'lucide-react';
+import Mermaid from '../components/Mermaid';
 import '../index.css';
+
+const pipelineChart = `
+flowchart TD
+    subgraph Sourcing["Phase 1: High-Throughput Sourcing"]
+        A["Direct ATS Scraping"]
+        B["JobRight / LinkedIn"]
+        
+        A --> D{"Gemini 2.5 Flash-Lite"}
+        B --> D
+        D -- "Discard Out of Scope" --> Z(("Drop"))
+        D -- "Valid Jobs" --> E[("Local JSON Cache")]
+    end
+
+    subgraph Injection["Phase 2: Context Injection"]
+        E --> F["LangGraph State Machine"]
+        G[("University Syllabus YAML")] --> F
+        H[("Master Profile YAML")] --> F
+    end
+
+    subgraph Evaluation["Phase 3: Deep Evaluation"]
+        F --> J["Gemini 2.0 Flash Rubric"]
+        J -. "Fallback / 429" .-> K["OpenRouter Unified Bridge"]
+        
+        J --> L(["Deterministic Match Score %"])
+        K --> L
+        J --> M(["Prescriptive Gap Analysis"])
+        K --> M
+    end
+
+    L --> N[("Google Sheets SSOT")]
+    M --> N
+
+    classDef source fill:#1e1e24,stroke:#6366f1,stroke-width:2px,color:#fff
+    classDef agent fill:#0d1117,stroke:#10b981,stroke-width:2px,color:#fff
+    classDef eval fill:#0d1117,stroke:#f59e0b,stroke-width:2px,color:#fff
+    classDef db fill:#0d1117,stroke:#3b82f6,stroke-width:2px,color:#fff
+
+    class A,B source
+    class D,F agent
+    class J,K eval
+    class E,G,H,N db
+`;
 
 export default function Architecture() {
     useEffect(() => {
@@ -80,6 +123,20 @@ export default function Architecture() {
                             </div>
                         </div>
 
+                    </div>
+                </div>
+            </section>
+
+            {/* Mermaid Architecture Flow */}
+            <section className="container" style={{ marginTop: '80px' }}>
+                <div className="glass-panel animate-fade-up delay-2" style={{ padding: '60px 40px', background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '16px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                    <div style={{ marginBottom: '40px', textAlign: 'center' }}>
+                        <h2 style={{ fontSize: '1.8rem', marginBottom: '16px' }}>System Architecture Map</h2>
+                        <p style={{ color: 'var(--text-secondary)', maxWidth: '600px' }}>A visual representation of the dual-model strategy, routing logic, and state machine validation.</p>
+                    </div>
+
+                    <div className="mermaid-render-box" style={{ width: '100%', maxWidth: '800px', background: 'rgba(0,0,0,0.4)', padding: '2vw', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                        <Mermaid chart={pipelineChart} />
                     </div>
                 </div>
             </section>
