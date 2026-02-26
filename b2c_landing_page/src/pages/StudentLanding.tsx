@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { BrainCircuit, Briefcase, Network, ArrowRight, CheckCircle2, FileText, Target, Map, Database, GitBranch, GraduationCap, Github } from 'lucide-react';
+import { BrainCircuit, Briefcase, Network, ArrowRight, CheckCircle2, FileText, Target, Map, Database, GitBranch, Github } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import DetailedCompetitiveMatrix from '../components/DetailedCompetitiveMatrix';
 import FAQ from '../components/FAQ';
@@ -343,8 +343,8 @@ export default function StudentLanding() {
                 <div className="container">
                     <div className="section-header text-center animate-fade-up">
                         <h2 className="text-gradient">The Alumni Intelligence Network</h2>
-                        <p className="subtitle" style={{ maxWidth: '800px', margin: '0 auto' }}>
-                            Stop cold-DMing strangers on LinkedIn. We map exactly where your program's alumni were hired, their starting roles, and the exact "Verified Match" score they used to get in.
+                        <p className="subtitle" style={{ maxWidth: '900px', margin: '0 auto', lineHeight: '1.6' }}>
+                            Stop cold-DMing strangers on LinkedIn who will never answer you. JobsProof analyzes historical placement data from your specific university program to build a deterministic graph of warm leads. We show you exactly where your program's alumni were hired, what their starting titles were, and the exact "Verified Match" curriculum traits that got them their offer.
                         </p>
                     </div>
 
@@ -479,95 +479,26 @@ export default function StudentLanding() {
             {/* AI Teaser Section */}
             <ArchitectureSection />
 
-            {/* CTA Validation Section */}
+            {/* CTA Validation Section -> Replaced with Open Source CTA */}
             <section className="cta-section" style={{ paddingBottom: '60px' }}>
                 <div className="container text-center animate-fade-up">
-                    <div style={{ maxWidth: '600px', margin: '0 auto', background: 'linear-gradient(180deg, rgba(99, 102, 241, 0.1) 0%, var(--bg-secondary) 100%)', border: '1px solid rgba(99, 102, 241, 0.3)', padding: '48px 32px', borderRadius: '24px' }}>
-                        <GraduationCap size={40} color="var(--accent-primary)" style={{ margin: '0 auto 24px auto' }} />
-                        <h2 style={{ fontSize: '2rem', marginBottom: '16px' }}>Join the Alpha Cohort</h2>
-                        <p style={{ color: 'var(--text-secondary)', marginBottom: '32px' }}>Stop guessing your applications. Get a pre-evaluated job feed tailored explicitly to your verified proof of work.</p>
-                        <button className="btn-primary w-full" style={{ padding: '16px 0', fontSize: '1.1rem' }}>Request Beta Access</button>
+                    <div style={{ maxWidth: '800px', margin: '0 auto', background: 'linear-gradient(180deg, rgba(99, 102, 241, 0.1) 0%, var(--bg-secondary) 100%)', border: '1px solid rgba(99, 102, 241, 0.3)', padding: '48px 32px', borderRadius: '24px' }}>
+                        <Github size={48} color="var(--accent-primary)" style={{ margin: '0 auto 24px auto' }} />
+                        <h2 style={{ fontSize: '2rem', marginBottom: '16px' }}>Want to Contribute?</h2>
+                        <p style={{ color: 'var(--text-secondary)', marginBottom: '32px', fontSize: '1.05rem', lineHeight: '1.6' }}>JobsProof is powered by open-source agentic pipelines. We are actively building out multi-platform ATS execution, advanced LaTeX compilation engines, and deeper intelligence matrices. Join us in breaking the resume black box.</p>
+                        <div style={{ display: 'flex', gap: '16px', justifyContent: 'center', flexWrap: 'wrap' }}>
+                            <a href="https://github.com/nagarajaabhishek/jobs" target="_blank" rel="noopener noreferrer" className="btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '8px', textDecoration: 'none' }}>
+                                <GitBranch size={18} /> Contribute to Job Automation
+                            </a>
+                            <a href="https://github.com/nagarajaabhishek/resume_agent" target="_blank" rel="noopener noreferrer" className="btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: '8px', textDecoration: 'none' }}>
+                                <GitBranch size={18} /> Contribute to Resume Agent
+                            </a>
+                        </div>
                     </div>
                 </div>
             </section>
             {/* [NEW] Gap Analysis Engine Section */}
-            <section className="gap-analysis-section" style={{ padding: '100px 0', background: 'var(--bg-secondary)' }}>
-                <div className="container">
-                    <div className="section-header text-center animate-fade-up">
-                        <h2 className="text-gradient">Identify Your Hiring Gaps</h2>
-                        <p className="subtitle">Stop applying blindly. See exactly where your current syllabus falls short of your dream role, and which project fixes it.</p>
-                    </div>
 
-                    <div className="engine-grid" style={{ alignItems: 'flex-start', marginTop: '60px' }}>
-                        <div className="engine-text animate-fade-up">
-                            <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '24px', padding: '32px' }}>
-                                <h3 style={{ marginBottom: '24px' }}>Select Target Role</h3>
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                                    {['Fullstack Engineer', 'Data Analyst', 'Product Manager'].map((role) => (
-                                        <button
-                                            key={role}
-                                            className={`dept-btn ${role === 'Fullstack Engineer' ? 'active' : ''}`}
-                                            style={{ width: '100%', textAlign: 'left', borderRadius: '12px', padding: '16px' }}
-                                        >
-                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                                <span>{role}</span>
-                                                <ArrowRight size={16} />
-                                            </div>
-                                        </button>
-                                    ))}
-                                </div>
-
-                                <div className="mt-8">
-                                    <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '12px' }}>SKILL COVERAGE MODEL</div>
-                                    <div className="skill-tag">Next.js (Verified via CS 4301)</div>
-                                    <div className="skill-tag">Postgres (Verified via Database Lab)</div>
-                                    <div className="skill-tag-warning">Docker (GAP IDENTIFIED)</div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="engine-visual animate-fade-up delay-1">
-                            <div className="glass-panel" style={{ padding: '40px', background: 'var(--bg-card)' }}>
-                                <div style={{ textAlign: 'center', marginBottom: '32px' }}>
-                                    <div style={{ fontSize: '3rem', fontWeight: '800', color: 'var(--accent-primary)' }}>84%</div>
-                                    <div style={{ color: 'var(--text-secondary)', fontWeight: '600' }}>Overall Readiness Score</div>
-                                </div>
-
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                                    <div className="audit-row">
-                                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                                            <span style={{ fontSize: '0.9rem' }}>Syllabus Alignment</span>
-                                            <span style={{ color: 'var(--accent-primary)' }}>65%</span>
-                                        </div>
-                                        <div className="audit-progress"><div className="audit-bar" style={{ width: '65%' }}></div></div>
-                                    </div>
-
-                                    <div className="audit-row">
-                                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                                            <span style={{ fontSize: '0.9rem' }}>Project Evidence</span>
-                                            <span style={{ color: 'var(--success)' }}>92%</span>
-                                        </div>
-                                        <div className="audit-progress"><div className="audit-bar" style={{ width: '92%', background: 'var(--success)' }}></div></div>
-                                    </div>
-
-                                    <div className="audit-row">
-                                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                                            <span style={{ fontSize: '0.9rem' }}>Hackathon/Extracurricular</span>
-                                            <span style={{ color: 'var(--warning)' }}>40%</span>
-                                        </div>
-                                        <div className="audit-progress"><div className="audit-bar" style={{ width: '40%', background: 'var(--warning)' }}></div></div>
-                                    </div>
-                                </div>
-
-                                <div style={{ marginTop: '40px', padding: '20px', background: 'rgba(255,165,0,0.05)', borderRadius: '12px', border: '1px solid rgba(255,165,0,0.2)' }}>
-                                    <div style={{ color: 'var(--warning)', fontWeight: '700', fontSize: '0.85rem', marginBottom: '8px' }}>BRIDGE THE GAP:</div>
-                                    <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>You are missing <strong>Containerization</strong>. Our AI suggests completing <strong>Lab 4: Dockerize</strong> or uploading your <strong>WebDev Project</strong> GitHub repo to hit 95%.</p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </section>
 
             <FAQ
                 title="Student FAQ"

@@ -54,10 +54,10 @@ export default function UniversityLanding() {
     return (
         <>
             <section className="hero-section" style={{ background: 'radial-gradient(ellipse at top, rgba(16, 185, 129, 0.1) 0%, var(--bg-primary) 70%)' }}>
-                <div className="container hero-grid text-center">
-                    <div className="hero-content animate-fade-up">
-                        <div className="b2b-badge">For Universities & Dept Heads</div>
-                        <h1>Close the "Black Box" of <span style={{ color: 'var(--success)' }}>Student Success.</span></h1>
+                <div className="container text-center">
+                    <div className="hero-content animate-fade-up" style={{ margin: '0 auto', maxWidth: '800px' }}>
+                        <div className="b2b-badge" style={{ display: 'inline-block', margin: '0 auto 24px auto' }}>For Universities & Dept Heads</div>
+                        <h1 style={{ fontSize: '3.5rem', lineHeight: '1.2', marginBottom: '24px' }}>Close the "Black Box" of <span style={{ color: 'var(--success)' }}>Student Success.</span></h1>
                         <p>Stop guessing why graduates aren't getting hired. Get actionable data to prove your curriculum's ROI with <strong>JobsProof.com</strong>, update syllabi dynamically, and simplify accreditation reporting.</p>
 
                         <div className="cta-group">
@@ -217,14 +217,20 @@ export default function UniversityLanding() {
                             <div className="point-us pulsate-point">
                                 <div className="point-label">JobsProof</div>
                             </div>
-                            <div className="point-fair">
-                                <div className="point-label">Manual Faculty Audits</div>
+                            <div className="point-fair" style={{ bottom: '80%', left: '20%' }}>
+                                <div className="point-label" style={{ whiteSpace: 'nowrap' }}>Manual Faculty Audits</div>
                             </div>
-                            <div className="point-survey" style={{ bottom: '25%', left: '45%' }}>
+                            <div className="point-survey" style={{ bottom: '30%', left: '70%' }}>
                                 <div className="point-label">Handshake</div>
                             </div>
-                            <div className="point-handshake" style={{ bottom: '15%', left: '60%' }}>
-                                <div className="point-label">LinkedIn/Job Boards</div>
+                            <div className="point-survey" style={{ bottom: '25%', left: '60%', background: 'var(--text-secondary)' }}>
+                                <div className="point-label">Symplicity</div>
+                            </div>
+                            <div className="point-survey" style={{ bottom: '35%', left: '65%', background: 'var(--text-secondary)' }}>
+                                <div className="point-label">12Twenty</div>
+                            </div>
+                            <div className="point-handshake" style={{ bottom: '15%', left: '85%' }}>
+                                <div className="point-label" style={{ whiteSpace: 'nowrap' }}>LinkedIn / Generic Boards</div>
                             </div>
                         </div>
                     </div>
@@ -323,17 +329,6 @@ export default function UniversityLanding() {
                 ]}
             />
 
-            {/* CTA Validation Section */}
-            <section className="cta-section" style={{ paddingBottom: '60px' }}>
-                <div className="container text-center animate-fade-up">
-                    <div style={{ maxWidth: '600px', margin: '0 auto', background: 'linear-gradient(180deg, rgba(16, 185, 129, 0.1) 0%, var(--bg-secondary) 100%)', border: '1px solid rgba(16, 185, 129, 0.3)', padding: '48px 32px', borderRadius: '24px' }}>
-                        <Building2 size={40} color="var(--success)" style={{ margin: '0 auto 24px auto' }} />
-                        <h2 style={{ fontSize: '2rem', marginBottom: '16px' }}>Ready to Modernize Your Career Services?</h2>
-                        <p style={{ color: 'var(--text-secondary)', marginBottom: '32px' }}>We are currently validating pilot partnerships with select UT System programs.</p>
-                        <button className="btn-primary w-full" style={{ padding: '16px 0', fontSize: '1.1rem', background: 'var(--success)', color: '#000' }}>Schedule a Pilot Consultation</button>
-                    </div>
-                </div>
-            </section>
         </>
     );
 }
