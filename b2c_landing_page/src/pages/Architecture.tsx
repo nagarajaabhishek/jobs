@@ -9,7 +9,6 @@ flowchart TD
     subgraph Inputs["Base Configurations"]
         H[("University Syllabus YAML")]
         I[("Master Profile YAML")]
-        T[("LaTeX Base Templates")]
     end
 
     %% Phase 1: Sourcing
@@ -23,8 +22,10 @@ flowchart TD
         D -- "Non-Target" --> Z
         D -- "Target Hubs" --> E{"Gemini 2.5 Flash-Lite"}
         E -- "Lacks Keywords" --> Z
-        E -- "Valid Jobs" --> F[("Local JSON Cache")]
     end
+
+    %% The Core Cache
+    E -- "Valid Jobs" --> F[("Local JSON JD Cache (Storage)")]
 
     %% Phase 2: Context
     subgraph Injection["Phase 2: Context Injection"]
@@ -41,11 +42,14 @@ flowchart TD
         J & K --> M(["Prescriptive Gap Analysis"])
     end
 
-    %% Phase 4: Artifacts
-    subgraph Artifacts["Phase 4: Artifact Generation"]
-        L & M --> O["Tailoring Engine"]
-        T --> O
-        O --> P[("Targeted PDF Resume")]
+    %% Phase 4: Artifacts (Resume Agent)
+    subgraph Artifacts["Phase 4: Resume_Agent Architecture"]
+        I -. "Base History" .-> RA_Data[("Role Specific YAMLs")]
+        T[("LaTeX Base Templates (.cls, .tex)")] --> O
+        RA_Data --> O
+        L & M --> O["Python Generation Engine (XYZ Pattern & Line Efficiency)"]
+        
+        O --> P[("ATS-Optimized PDF Resume")]
         O --> Q[("Custom Cover Letter")]
     end
 
@@ -65,15 +69,17 @@ flowchart TD
     classDef generator fill:#0d1117,stroke:#a855f7,stroke-width:2px,color:#fff
     classDef ui fill:#1e1e24,stroke:#ec4899,stroke-width:2px,color:#fff
     classDef db fill:#0d1117,stroke:#3b82f6,stroke-width:2px,color:#fff
+    classDef cache fill:#0f172a,stroke:#38bdf8,stroke-width:3px,color:#fff,stroke-dasharray: 5 5
     classDef drop fill:#2d1b1b,stroke:#ef4444,stroke-width:2px,color:#fca5a5
 
     class A,B source
     class C,D,E filter
-    class G,O agent
+    class G agent
     class J,K eval
-    class P,Q generator
+    class O generator
     class S,U,V ui
-    class F,H,I,T,N db
+    class H,I,T,N,RA_Data db
+    class F cache
     class Z drop
 `;
 
@@ -167,7 +173,7 @@ export default function Architecture() {
                         <p style={{ color: 'var(--text-secondary)', maxWidth: '600px' }}>A visual representation of the dual-model strategy, routing logic, and state machine validation.</p>
                     </div>
 
-                    <div className="mermaid-render-box" style={{ width: '100%', maxWidth: '800px', background: 'rgba(0,0,0,0.4)', padding: '2vw', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                    <div className="mermaid-render-box" style={{ width: '100%', maxWidth: '1200px', background: 'rgba(0,0,0,0.4)', padding: '3vw', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.05)' }}>
                         <Mermaid chart={pipelineChart} />
                     </div>
                 </div>
