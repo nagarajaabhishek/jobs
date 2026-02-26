@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { BarChart3, Building2, GraduationCap, ArrowRight, Briefcase } from 'lucide-react';
+import { BarChart3, Building2, ArrowRight, Briefcase, XCircle, ShieldCheck } from 'lucide-react';
 import CompetitiveTable from '../components/CompetitiveTable';
 import FAQ from '../components/FAQ';
 
@@ -57,10 +57,10 @@ export default function UniversityLanding() {
                 <div className="container text-center">
                     <div className="hero-content animate-fade-up" style={{ margin: '0 auto', maxWidth: '800px' }}>
                         <div className="b2b-badge" style={{ display: 'inline-block', margin: '0 auto 24px auto' }}>For Universities & Dept Heads</div>
-                        <h1 style={{ fontSize: '3.5rem', lineHeight: '1.2', marginBottom: '24px' }}>Close the "Black Box" of <span style={{ color: 'var(--success)' }}>Student Success.</span></h1>
-                        <p>Stop guessing why graduates aren't getting hired. Get actionable data to prove your curriculum's ROI with <strong>JobsProof.com</strong>, update syllabi dynamically, and simplify accreditation reporting.</p>
+                        <h1 style={{ fontSize: '3.5rem', lineHeight: '1.2', marginBottom: '24px' }}>Prove the exact ROI of your <span style={{ color: 'var(--success)' }}>Curriculum.</span></h1>
+                        <p>Employers are drowning in AI-generated resume spam. Transform your syllabi into verified talent profiles that top tech companies actually trust.</p>
 
-                        <div className="cta-group">
+                        <div className="cta-group" style={{ justifyContent: 'center' }}>
                             <button className="btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'var(--success)', color: '#000' }}>
                                 Request Department Demo <ArrowRight size={18} />
                             </button>
@@ -88,9 +88,9 @@ export default function UniversityLanding() {
                         </div>
 
                         <div className="b2b-card animate-fade-up delay-3">
-                            <GraduationCap size={32} className="b2b-icon" />
-                            <h3>Accreditation Data</h3>
-                            <p>Generate automated reports for ABET or AACSB accreditation workflows based on verified student skill mastery against real-world job data.</p>
+                            <ShieldCheck size={32} className="b2b-icon" />
+                            <h3>Rebuild Employer Trust</h3>
+                            <p>Handshake is drowning in AI hallucinations. We act as a firewall, guaranteeing employers that your graduates' listed skills are deterministically proven.</p>
                         </div>
                     </div>
                 </div>
@@ -142,96 +142,65 @@ export default function UniversityLanding() {
                 </div>
             </section>
 
-            {/* [NEW] Accreditation Evidence Dashboard */}
-            <section className="accreditation-section" style={{ padding: '80px 0', background: 'var(--bg-secondary)' }}>
-                <div className="container">
-                    <div className="engine-grid" style={{ alignItems: 'center' }}>
-                        <div className="engine-visual animate-fade-up">
-                            <div className="glass-panel" style={{ padding: '0', background: 'var(--bg-card)' }}>
-                                <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                        <Building2 size={18} color="var(--success)" />
-                                        <span style={{ fontWeight: '600' }}>{activeDept === 'business' ? 'AACSB' : activeDept === 'science' ? 'SACS' : 'ABET'} Audit Evidence</span>
-                                    </div>
-                                    <span style={{ fontSize: '0.75rem', background: '#000', padding: '4px 8px', borderRadius: '4px', color: 'var(--text-secondary)' }}>ID: #501-EVD</span>
-                                </div>
-                                <div style={{ padding: '24px 20px' }}>
-                                    {currentData.evidence.map((ev, idx) => (
-                                        <div key={idx} className={`evidence-block ${idx > 0 ? 'mt-4' : ''}`} style={idx > 0 ? { opacity: 0.6 } : {}}>
-                                            <div className="evidence-header">Requirement: {ev.req}</div>
-                                            <div className="evidence-source">Source: {ev.source}</div>
-                                            <div className="evidence-data">{ev.data}</div>
-                                            <div className="evidence-status">READY FOR EXPORT</div>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        </div>
-                        <div className="engine-text animate-fade-up delay-1">
-                            <h2>Automated Audit Readiness</h2>
-                            <p className="subtitle">Stop hunting for student work samples. We map verified proof of work directly to your accreditation requirements.</p>
-                            <ul style={{ listStyle: 'none', padding: '0', marginTop: '24px' }}>
-                                <li style={{ display: 'flex', gap: '12px', marginBottom: '16px' }}>
-                                    <div style={{ color: 'var(--success)' }}>✓</div>
-                                    <div><strong>ABET/AACSB Ready:</strong> One-click export of student project samples mapped to specific learning outcomes.</div>
-                                </li>
-                                <li style={{ display: 'flex', gap: '12px', marginBottom: '16px' }}>
-                                    <div style={{ color: 'var(--success)' }}>✓</div>
-                                    <div><strong>Verified Mastery:</strong> Proof comes from GitHub repos and project docs, not just grades.</div>
-                                </li>
-                                <li style={{ display: 'flex', gap: '12px', marginBottom: '16px' }}>
-                                    <div style={{ color: 'var(--success)' }}>✓</div>
-                                    <div><strong>Longitudinal ROI:</strong> Track employment success of students who mastered specific competencies.</div>
-                                </li>
-                            </ul>
-                        </div>
-                    </div>
-                </div>
-            </section>
-
-            {/* [NEW] XY Strategic Graph Section */}
+            {/* [NEW] The Status Quo vs. JobsProof */}
             <section className="xy-analysis-section" style={{ padding: '100px 0', background: 'var(--bg-primary)' }}>
                 <div className="container">
                     <div className="section-header text-center animate-fade-up">
-                        <h2 className="text-gradient">Strategic XY Positioning</h2>
-                        <p className="subtitle">High-fidelity data with near-zero manual overhead.</p>
+                        <h2 className="text-gradient-green">Quality of Hire vs. The Status Quo</h2>
+                        <p className="subtitle" style={{ maxWidth: '800px', margin: '0 auto' }}>
+                            Employers are ignoring generic career portals. We rebuild their trust in your university by providing a unified, certified talent pipeline.
+                        </p>
                     </div>
 
-                    <div className="xy-graph-wrapper animate-fade-up delay-1">
-                        <div className="xy-graph">
-                            {/* Y-Axis (Data Granularity) */}
-                            <div className="y-axis">
-                                <div className="y-label">High Data Granularity</div>
-                                <div className="y-arrow"></div>
-                                <div className="y-label-sub">Low Data Granularity</div>
+                    <div className="engine-grid" style={{ marginTop: '60px' }}>
+                        {/* Status Quo */}
+                        <div className="b2b-card animate-fade-up delay-1" style={{ background: 'rgba(239, 68, 68, 0.05)', border: '1px solid rgba(239, 68, 68, 0.2)' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
+                                <div style={{ background: 'var(--warning)', padding: '12px', borderRadius: '12px' }}>
+                                    <XCircle color="#000" size={24} />
+                                </div>
+                                <h3 style={{ margin: 0, fontSize: '1.4rem' }}>The Status Quo</h3>
                             </div>
+                            <div style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: '24px', fontStyle: 'italic' }}>Handshake, Symplicity, or generic job boards.</div>
+                            <ul style={{ listStyle: 'none', padding: 0 }}>
+                                <li style={{ marginBottom: '16px', display: 'flex', gap: '12px', color: 'var(--text-secondary)' }}>
+                                    <span style={{ color: 'var(--warning)', fontWeight: 'bold' }}>✗</span>
+                                    <span><strong>Low Trust:</strong> Employers suspect resumes are AI-hallucinated.</span>
+                                </li>
+                                <li style={{ marginBottom: '16px', display: 'flex', gap: '12px', color: 'var(--text-secondary)' }}>
+                                    <span style={{ color: 'var(--warning)', fontWeight: 'bold' }}>✗</span>
+                                    <span><strong>High Noise:</strong> Recruiters sift through 1,000s of keyword dumps.</span>
+                                </li>
+                                <li style={{ display: 'flex', gap: '12px', color: 'var(--text-secondary)' }}>
+                                    <span style={{ color: 'var(--warning)', fontWeight: 'bold' }}>✗</span>
+                                    <span><strong>No Context:</strong> "Python" could mean a 1-hour bootcamp or a 4-month graded thesis.</span>
+                                </li>
+                            </ul>
+                        </div>
 
-                            {/* X-Axis (Manual Audit Effort) */}
-                            <div className="x-axis">
-                                <div className="x-label-sub">High Manual Effort</div>
-                                <div className="x-arrow"></div>
-                                <div className="x-label">Low Manual Effort</div>
+                        {/* JobsProof */}
+                        <div className="b2b-card animate-fade-up delay-2" style={{ background: 'rgba(16, 185, 129, 0.05)', border: '1px solid var(--success)' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
+                                <div style={{ background: 'var(--success)', padding: '12px', borderRadius: '12px' }}>
+                                    <ShieldCheck color="#000" size={24} />
+                                </div>
+                                <h3 style={{ margin: 0, fontSize: '1.4rem', color: 'var(--success)' }}>The JobsProof Talent Pipeline</h3>
                             </div>
-
-                            {/* Data Points */}
-                            <div className="point-us pulsate-point">
-                                <div className="point-label">JobsProof</div>
-                            </div>
-                            <div className="point-fair" style={{ bottom: '80%', left: '20%' }}>
-                                <div className="point-label" style={{ whiteSpace: 'nowrap' }}>Manual Faculty Audits</div>
-                            </div>
-                            <div className="point-survey" style={{ bottom: '30%', left: '70%' }}>
-                                <div className="point-label">Handshake</div>
-                            </div>
-                            <div className="point-survey" style={{ bottom: '25%', left: '60%', background: 'var(--text-secondary)' }}>
-                                <div className="point-label">Symplicity</div>
-                            </div>
-                            <div className="point-survey" style={{ bottom: '35%', left: '65%', background: 'var(--text-secondary)' }}>
-                                <div className="point-label">12Twenty</div>
-                            </div>
-                            <div className="point-handshake" style={{ bottom: '15%', left: '85%' }}>
-                                <div className="point-label" style={{ whiteSpace: 'nowrap' }}>LinkedIn / Generic Boards</div>
-                            </div>
+                            <div style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: '24px', fontStyle: 'italic' }}>Deterministic, curriculum-anchored hiring profiles.</div>
+                            <ul style={{ listStyle: 'none', padding: 0 }}>
+                                <li style={{ marginBottom: '16px', display: 'flex', gap: '12px', color: 'var(--text-secondary)' }}>
+                                    <span style={{ color: 'var(--success)', fontWeight: 'bold' }}>✓</span>
+                                    <span><strong>High Trust:</strong> Core skills are deterministically proven against your syllabi.</span>
+                                </li>
+                                <li style={{ marginBottom: '16px', display: 'flex', gap: '12px', color: 'var(--text-secondary)' }}>
+                                    <span style={{ color: 'var(--success)', fontWeight: 'bold' }}>✓</span>
+                                    <span><strong>Curated Quality:</strong> Employers see pre-ranked matches, not an unfiltered firehose.</span>
+                                </li>
+                                <li style={{ display: 'flex', gap: '12px', color: 'var(--text-secondary)' }}>
+                                    <span style={{ color: 'var(--success)', fontWeight: 'bold' }}>✓</span>
+                                    <span><strong>Deep Context:</strong> "Python" is linked directly to passing grades on CS 4305 Lab Repos.</span>
+                                </li>
+                            </ul>
                         </div>
                     </div>
                 </div>
