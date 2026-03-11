@@ -8,8 +8,7 @@ description: How to run the job sourcing and evaluation pipeline
 Follow these steps to perform a complete job sourcing and evaluation run for today.
 
 1. **Prerequisites**
-   - Ensure Ollama is running (`ollama serve`).
-   - Ensure `.env` contains necessary configuration.
+   - Ensure `.env` contains the necessary configuration (e.g., `GEMINI_API_KEY`).
    - Ensure `config/credentials.json` is present for Google Sheets.
 
 2. **Run Sourcing & Evaluation**

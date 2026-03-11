@@ -4,9 +4,6 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
-
-
 def get_evaluation_config():
     """Import here to avoid circular dependencies."""
     from src.core.config import get_evaluation_config
@@ -15,15 +12,12 @@ def get_evaluation_config():
 
 class LLMRouter:
     def __init__(self, model=None):
-        """Initializes the evaluation engine: OpenRouter or Gemini."""
-        eval_cfg = get_evaluation_config()
-        self.provider = eval_cfg.get("provider", "gemini").lower()
+        """Initializes the Gemini evaluation engine."""
+        self.provider = "gemini"
         self.gemini_key = os.environ.get("GEMINI_API_KEY")
-        self.openrouter_key = os.environ.get("OPENROUTER_API_KEY")
-        self.openrouter_model = eval_cfg.get("openrouter_model") or os.environ.get("OPENROUTER_MODEL") or "google/gemini-2.0-flash-exp:free"
         self._session = requests.Session()
 
-    def _generate_gemini(self, system_prompt: str, user_prompt: str, formatting_instruction: str = None, model: str = None) -> str:
+    def _generate_gemini(self, system_prompt: str, user_prompt: str, formatting_instruction: str | None = None, model: str | None = None) -> str:
         """Calls Gemini 1.5 Pro/Flash via REST API."""
         if not self.gemini_key:
             print("  ⚠ Gemini API key not found in environment.")
@@ -92,62 +86,12 @@ class LLMRouter:
             print(f"  ⚠ Gemini API failed: {e}")
             return ""
 
-    def _generate_openrouter(self, system_prompt: str, user_prompt: str, formatting_instruction: str = None) -> str:
-        """Calls OpenRouter (unified API). One key, many models."""
-        if not self.openrouter_key:
-            return ""
-        url = f"{OPENROUTER_BASE_URL}/chat/completions"
-        headers = {
-            "Content-Type": "application/json",
-            "Authorization": f"Bearer {self.openrouter_key}",
-        }
+    def generate_content(self, system_prompt: str, user_prompt: str, formatting_instruction: str | None = None, model: str | None = None) -> tuple[str, str]:
+        """Generates content using the configured Gemini API."""
+        print(f"  -> Generating with Gemini...")
+        text = self._generate_gemini(system_prompt, user_prompt, formatting_instruction=formatting_instruction, model=model)
+        if text:
+            return text, "GEMINI"
         
-        full_user_prompt = user_prompt
-        if formatting_instruction:
-            full_user_prompt += f"\n\n{formatting_instruction}"
-            
-        payload = {
-            "model": self.openrouter_model,
-            "messages": [
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": full_user_prompt},
-            ],
-            "temperature": 0.1,
-            "max_tokens": 2048,
-        }
-        try:
-            r = self._session.post(url, headers=headers, json=payload, timeout=30)
-            r.raise_for_status()
-            data = r.json()
-            
-            choices = data.get("choices", [])
-            if not choices:
-                return ""
-                
-            first_choice = choices[0] or {}
-            message = first_choice.get("message", {})
-            return message.get("content", "").strip()
-        except Exception as e:
-            print(f"  ⚠ OpenRouter API failed: {e}")
-            return ""
-
-    def generate_content(self, system_prompt: str, user_prompt: str, formatting_instruction: str = None, model: str = None) -> tuple[str, str]:
-        """Generates content using the configured cloud provider (Gemini or OpenRouter)."""
-        
-        # 1. Try Gemini if configured (Primary)
-        if self.provider == "gemini":
-            print(f"  -> Generating with Gemini...")
-            text = self._generate_gemini(system_prompt, user_prompt, formatting_instruction=formatting_instruction, model=model)
-            if text:
-                return text, "GEMINI"
-            
-        # 2. Try OpenRouter if configured
-        if self.provider == "openrouter":
-            print(f"  -> Generating with OpenRouter ({self.openrouter_model})...")
-            text = self._generate_openrouter(system_prompt, user_prompt, formatting_instruction=formatting_instruction)
-            if text:
-                return text, "OPENROUTER"
-
-        # 3. Fail if no primary works
-        print("  ⚠ No cloud-based LLM response received.")
+        print("  ⚠ No valid response received from Gemini.")
         return "", "FAILED"
