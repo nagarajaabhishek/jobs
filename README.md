@@ -1,6 +1,6 @@
 # Job Automation Pipeline
 
-An automated system for sourcing, filtering, and evaluating job postings using **Gemini 1.5 Pro** and **OpenRouter (Unified Cloud)**.
+An automated system for sourcing, filtering, and evaluating job postings using **Gemini 1.5 Pro** and **Gemini 2.5 Flash**.
 
 ## Master Architecture
 ```mermaid
@@ -20,11 +20,10 @@ graph TD
         L[JD Cache: Local JSON Store] --> G
     end
 
-    subgraph Logic ["3. Evaluation Layer (Cloud)"]
+    subgraph Logic ["3. Evaluation Layer (Gemini)"]
         G[Evaluation Agent] --> M[LLM Router]
-        M -- Primary --> N[Gemini 1.5 Pro API]
-        M -- Alternative --> O[OpenRouter / Cloud Bridge]
-        N & O --> Q[Match Scoring 2.0 Rubric]
+        M -- Primary --> N[Gemini API]
+        N --> Q[Match Scoring 2.0 Rubric]
         J[Sponsorship Agent] --> G
     end
 
@@ -43,7 +42,7 @@ graph TD
 - **Dual-Model Strategy**:
     - **Sourcing/Sniffing**: Powered by `gemini-2.5-flash-lite` for ultra-low-cost relevance checks.
     - **Deep Matching**: Powered by `gemini-2.0-flash` for high-fidelity evaluation and scoring.
-- **Unified Cloud Bridge**: One API key (OpenRouter) to access any model (Claude, DeepSeek, Gemini).
+
 - **AI-Enhanced Sourcing**: 
     - **Smart Sniffing**: Drops irrelevant roles before they hit the sheet.
     - **Query Expansion**: Brainstorms search terms for better coverage.
@@ -66,10 +65,10 @@ python3 run_pipeline.py
 For detailed agent instructions, see [.agent/workflows/job_pipeline.md](.agent/workflows/job_pipeline.md).
 
 ## Configuration
-- **Environment**: Copy `.env.example` to `.env`. Required: `OPENROUTER_API_KEY`, `GEMINI_API_KEY` (fallback).
+- **Environment**: Copy `.env.example` to `.env`. Required: `GEMINI_API_KEY`.
 - **Pipeline**: Edit `config/pipeline.yaml` to change:
     - `sourcing`: Queries, `expand_ai_queries`, `use_ai_filter`.
-    - `evaluation`: `provider` (openrouter/gemini), `gemini_model`, `openrouter_model`.
+    - `evaluation`: `provider` (gemini), `gemini_model`.
 
 ## Job descriptions (JD)
 - **Local cache**: Full JDs are stored in `config/jd_cache.json` (keyed by canonical URL) to avoid cluttering Google Sheets while keeping evaluation context high.
