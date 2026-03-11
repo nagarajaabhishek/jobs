@@ -4,42 +4,52 @@ import '../index.css';
 const detailedData = [
     {
         platform: 'Handshake',
-        strategy: 'Employers (Filtering & volume)',
-        mechanism: '"Best Match" algorithm on basic qualifications',
-        trustDeficit: 'Institutional Inertia: Built for employers to filter out, not for students to improve.',
-        valueGap: 'No prescriptive gap analysis. Values access over improvement.',
+        strategy: 'Employers (Filtering)',
+        mechanism: 'Basic Qualifications',
+        trustDeficit: 'Low Trust: Employers treat as a low-signal filtering tool.',
+        valueGap: 'No skill validation or prescriptive feedback.',
+        syllabus: false,
+        evidence: false,
         icon: <Search size={18} />
     },
     {
         platform: 'JobRight.ai',
-        strategy: 'Students (Speed & automated rewriting)',
-        mechanism: 'AI-Agent extracting and over-optimizing keywords',
-        trustDeficit: 'Trust Deficit: High hallucination risk. Fakes evidence, creating recruiter AI-spam blacklists.',
-        valueGap: 'Zero academic context or verified gap analysis.',
+        strategy: 'Students (Rewriting)',
+        mechanism: 'AI Keyword Stuffing',
+        trustDeficit: 'Critical: Creating recruiter blacklists for AI-spam.',
+        valueGap: 'Fakes experience, destroying long-term applicant credit.',
+        syllabus: false,
+        evidence: false,
         icon: <AlertTriangle size={18} color="var(--warning)" />
     },
     {
         platform: 'Simplify',
-        strategy: 'Students (Form-filling automation)',
-        mechanism: 'Keyword overlap and basic profile mapping',
-        trustDeficit: 'Shallow Context: Treats simple scripts like major thesis projects.',
-        valueGap: 'Autofill extension only, zero value for career readiness tracking.',
+        strategy: 'Students (Autofill)',
+        mechanism: 'Browser Profile Mapping',
+        trustDeficit: 'Shallow: No context on how skills were built.',
+        valueGap: 'Zero value for career readiness or skill roadmaps.',
+        syllabus: false,
+        evidence: false,
         icon: <XCircle size={18} color="var(--warning)" />
     },
     {
         platform: 'LinkedIn / Indeed',
-        strategy: 'Mass Market / Professionals',
-        mechanism: 'Simple Title parsing & paid "Top Applicant" tags',
-        trustDeficit: 'Domain Blindness & High Noise: Rife with ghost jobs and broad suggestions.',
-        valueGap: 'Networking capabilities, but no actual skill validation.',
+        strategy: 'Mass Market',
+        mechanism: 'Paid Applicant Tags',
+        trustDeficit: 'Noisy: Dominated by ghost jobs and AI-noise.',
+        valueGap: 'Broad networking, but zero institutional verification.',
+        syllabus: false,
+        evidence: false,
         icon: <XCircle size={18} />
     },
     {
         platform: 'JobsProof.com',
-        strategy: 'Students & Universities (Curriculum ROI)',
-        mechanism: 'Verification-Based Matching mapped to graded syllabi',
-        trustDeficit: 'Authenticity Moat: Eliminates hallucinations by gating skills against verified projects.',
-        valueGap: 'Deep Prescriptive Gap Analysis. Tells you exactly what to study.',
+        strategy: 'Students & Universities',
+        mechanism: 'Syllabus-Anchored verification',
+        trustDeficit: 'Absolute: Skills are gated by institutional graded proof.',
+        valueGap: 'Eliminates guesswork. Tells you specifically what to study.',
+        syllabus: true,
+        evidence: true,
         icon: <ShieldCheck size={20} color="var(--success)" />,
         isJobsProof: true
     }
@@ -61,10 +71,10 @@ export default function DetailedCompetitiveMatrix() {
                         <thead>
                             <tr style={{ background: 'rgba(99, 102, 241, 0.05)', borderBottom: '1px solid var(--border-color)' }}>
                                 <th style={{ padding: '20px', fontWeight: '600', color: 'var(--text-primary)' }}>Platform</th>
-                                <th style={{ padding: '20px', fontWeight: '600', color: 'var(--text-primary)' }}>Primary Strategy</th>
-                                <th style={{ padding: '20px', fontWeight: '600', color: 'var(--text-primary)' }}>Matching Mechanism</th>
-                                <th style={{ padding: '20px', fontWeight: '600', color: 'var(--text-primary)' }}>Trust Deficits & Issues</th>
-                                <th style={{ padding: '20px', fontWeight: '600', color: 'var(--text-primary)' }}>The Value "Gap"</th>
+                                <th style={{ padding: '20px', fontWeight: '600', color: 'var(--text-primary)' }}>Syllabus Sync</th>
+                                <th style={{ padding: '20px', fontWeight: '600', color: 'var(--text-primary)' }}>AI-Verified Proof</th>
+                                <th style={{ padding: '20px', fontWeight: '600', color: 'var(--text-primary)' }}>Trust Level</th>
+                                <th style={{ padding: '20px', fontWeight: '600', color: 'var(--text-primary)' }}>The Value Gap</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -79,8 +89,12 @@ export default function DetailedCompetitiveMatrix() {
                                         {row.platform}
                                         {row.isJobsProof && <span style={{ fontSize: '0.65rem', padding: '2px 6px', background: 'var(--success)', color: '#000', borderRadius: '4px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Our Engine</span>}
                                     </td>
-                                    <td style={{ padding: '20px', fontSize: '0.9rem', color: 'var(--text-secondary)' }}>{row.strategy}</td>
-                                    <td style={{ padding: '20px', fontSize: '0.9rem', color: 'var(--text-secondary)' }}>{row.mechanism}</td>
+                                    <td style={{ padding: '20px', textAlign: 'center' }}>
+                                        {row.syllabus ? <ShieldCheck size={18} color="var(--success)" /> : <XCircle size={18} color="var(--warning)" style={{ opacity: 0.3 }} />}
+                                    </td>
+                                    <td style={{ padding: '20px', textAlign: 'center' }}>
+                                        {row.evidence ? <ShieldCheck size={18} color="var(--success)" /> : <XCircle size={18} color="var(--warning)" style={{ opacity: 0.3 }} />}
+                                    </td>
                                     <td style={{ padding: '20px', fontSize: '0.9rem', color: row.isJobsProof ? 'var(--success)' : 'var(--warning)', fontWeight: row.isJobsProof ? '600' : '400' }}>{row.trustDeficit}</td>
                                     <td style={{ padding: '20px', fontSize: '0.9rem', color: row.isJobsProof ? 'var(--text-primary)' : 'var(--text-secondary)', fontWeight: row.isJobsProof ? '600' : '400' }}>{row.valueGap}</td>
                                 </tr>

@@ -5,7 +5,7 @@ mermaid.initialize({
     startOnLoad: false,
     theme: 'dark',
     securityLevel: 'loose',
-    fontFamily: '"Inter", sans-serif',
+    fontFamily: '"Inter", sans-serif',poo
 });
 
 export default function Mermaid({ chart }: { chart: string }) {

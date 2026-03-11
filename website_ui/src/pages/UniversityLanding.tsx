@@ -53,14 +53,14 @@ export default function UniversityLanding() {
 
     return (
         <>
-            <section className="hero-section" style={{ background: 'radial-gradient(ellipse at top, rgba(16, 185, 129, 0.1) 0%, var(--bg-primary) 70%)' }}>
+            <section className="hero-section" style={{ minHeight: '80vh', paddingTop: '20px', background: 'radial-gradient(ellipse at top, rgba(16, 185, 129, 0.1) 0%, var(--bg-primary) 70%)' }}>
                 <div className="container text-center">
                     <div className="hero-content animate-fade-up" style={{ margin: '0 auto', maxWidth: '800px' }}>
                         <div className="b2b-badge" style={{ display: 'inline-block', margin: '0 auto 24px auto' }}>For Universities & Dept Heads</div>
-                        <h1 style={{ fontSize: '3.5rem', lineHeight: '1.2', marginBottom: '24px' }}>Prove the exact ROI of your <span style={{ color: 'var(--success)' }}>Curriculum.</span></h1>
-                        <p>Employers are drowning in AI-generated resume spam. Transform your syllabi into verified talent profiles that top tech companies actually trust.</p>
+                        <h1 style={{ fontSize: '3.5rem', lineHeight: '1.2', marginBottom: '24px', textAlign: 'center' }}>Prove the exact ROI of your <span style={{ color: 'var(--success)' }}>Curriculum.</span></h1>
+                        <p style={{ textAlign: 'center', margin: '0 auto 32px auto' }}>Employers are drowning in AI-generated resume spam. Transform your syllabi into verified talent profiles that top tech companies actually trust.</p>
 
-                        <div className="cta-group" style={{ justifyContent: 'center' }}>
+                        <div className="cta-group" style={{ display: 'flex', justifyContent: 'center', gap: '16px' }}>
                             <button className="btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'var(--success)', color: '#000' }}>
                                 Request Department Demo <ArrowRight size={18} />
                             </button>
