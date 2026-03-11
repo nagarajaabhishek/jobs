@@ -77,6 +77,18 @@ certifications:
 - 'Google: Project Management Professional Certificate'
 - 'Google: Agile Project Management'
 
+ideal_role:
+  seniority: "Beginner to Associate (Junior Scrum Master / Delivery Analyst)"
+  target_domains: ["Fintech", "Healthtech", "Developer Ecosystems"]
+  critical_match_signals:
+    - "Entry-level Scrum Master / Agile Facilitator"
+    - "Technical literacy (CS background)"
+    - "Impediment Removal / Servant Leadership"
+    - "AI-enhanced documentation"
+  deal_breakers:
+    - "Requires 5+ years as a Dedicated SM"
+    - "Legacy waterfall environments with no intent to transition"
+
 cover_letter:
   hook: As a Certified Scrum Product Owner (CSPO) and Agile Practitioner with a Master's in Computer Science, I specialize in servant leadership, stakeholder networking, and process improvement to drive team velocity and deliver high-impact products.
   bridge: I am passionate about removing impediments and fostering a culture of continuous improvement. My approach integrates deep technical literacy with product storytelling, allowing me to align cross-functional teams and leverage generative AI for efficient backlog refinement and technical documentation.

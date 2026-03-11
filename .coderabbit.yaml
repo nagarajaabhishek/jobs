@@ -1,0 +1,62 @@
+# CodeRabbit Configuration for Job_Automation
+# Optimized for Multi-Agent Orchestration and Web Scraping
+
+language: en
+
+reviews:
+  enabled: true
+  mode: auto
+  status: auto
+  base_branches:
+    - main
+    - master
+    - develop
+  
+  review_categories:
+    - security
+    - performance
+    - bug_risk
+    - documentation
+    - best_practices
+    - clarity
+    - maintainability
+  
+  path_filters:
+    include:
+      - "**/*.py"
+      - "**/*.md"
+      - "**/*.yaml"
+      - "**/*.yml"
+      - "**/*.json"
+    exclude:
+      - "**/__pycache__/**"
+      - "**/.venv/**"
+      - "**/venv/**"
+      - "**/*.log"
+      - "**/data/*.json"
+      - "**/data/*.yaml"
+
+chat:
+  enabled: true
+
+suggestions:
+  enabled: true
+  auto_apply: false
+
+instructions: |
+  - **Scraper Stability**: Verify that all new scrapers or updates to existing ones (e.g., in `src/agents/sourcing_agent.py`) implement a robust "Missing JD" fallback.
+  - **LLM Scoring Integrity**: Any changes to `evaluate_jobs.py` must maintain the 0-100 `Apply Conviction Score` contract. Ensure emoji mappings match the established tiered verdicts.
+  - **Prompt Engineering**: Monitor changes to files in `src/prompts/`. Flag any prompt updates that might break the required JSON output schema.
+  - **Credential Safety**: Strictly verify that Google Sheets `credentials.json`, `token.json`, or any `.env` variables are NEVER committed to the repository.
+  - **Async/Await**: Ensure that sourcing and evaluation loops remain efficient and do not block the main execution thread unnecessarily.
+  - **Path Handling**: All file operations should use absolute paths derived from the project root to ensure compatibility across different execution environments.
+
+language_settings:
+  python:
+    line_length: 100
+    docstring_style: google
+    type_checking: true
+
+cost_optimization:
+  skip_draft: true
+  max_files: 50

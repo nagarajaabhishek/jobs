@@ -87,6 +87,18 @@ certifications:
 - 'Google: Foundation of Project Management'
 - McKinsey.org Forward Program
 
+ideal_role:
+  seniority: "Beginner to Associate (0-2 years preferred)"
+  target_domains: ["B2B SaaS", "E-commerce", "AI-driven Tools"]
+  critical_match_signals:
+    - "Junior Product Owner / Associate PM roles"
+    - "Product Lifecycle Management (PLC)"
+    - "User Research / NPS Improvement"
+    - "CS Degree + AI-driven Discovery focus"
+  deal_breakers:
+    - "Requires 5+ years of PM experience"
+    - "Senior Director / VP roles"
+
 cover_letter:
   hook: As a Certified Scrum Product Owner (CSPO) with a Master's in Computer Science, I specialize in driving Agile product delivery and backlog management, leveraging agentic workflows and AI to accelerate product velocity.
   bridge: I excel at translating complex business needs into actionable user stories and technical requirements. My background in engineering allows me to bridge the gap between technical teams and stakeholders, ensuring that our roadmap is aligned with market demands while maintaining architectural integrity through rigorous definition of done and acceptance criteria.

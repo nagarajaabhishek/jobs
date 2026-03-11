@@ -88,3 +88,17 @@ certifications:
 - 'Google: Data Analytics Specialization'
 - McKinsey.org Forward Program
 - 'Google: Foundation of Project Management'
+
+ideal_role:
+  seniority: "Beginner to Associate (0-3 years preferred)"
+  target_domains: ["AI/ML Infrastructure", "Productivity SaaS", "Fintech", "Developer Platforms"]
+  critical_match_signals:
+    - "Early-career TPM / Junior PM roles"
+    - "Multi-Agent AI / LangGraph / LangChain mentioned"
+    - "FastAPI / Backend orchestration"
+    - "CS degree + engineering project ownership"
+  deal_breakers:
+    - "Requires 5+ years of industry experience"
+    - "Requires active TS/SCI clearance"
+    - "Strictly Hardware / Embedded / ASIC focus"
+    - "Entry-level Intern roles (unless high-tech AI)"

@@ -1,0 +1,24 @@
+{
+  "1d2145021f1ecf1049a4159b076b18c81d99153dd1b396b05de8852a9d9592cc": {
+    "name": "cachedContents/wpp5xdukpe53e0xcpeyhvyv1tgnuapinn742v7w6",
+    "model": "models/gemini-2.5-flash",
+    "createTime": "2026-03-11T20:43:00.142988Z",
+    "updateTime": "2026-03-11T20:43:00.142988Z",
+    "expireTime": "2026-03-11T21:42:59.585874430Z",
+    "displayName": "",
+    "usageMetadata": {
+      "totalTokenCount": 3421
+    }
+  },
+  "b4ce73e2ea69fa7af289ac3640ff2bc8b588cccc50d7d8f9744ffba103b67636": {
+    "name": "cachedContents/vujdyvyi7we8c6ah4px43ekgpoqd75q6ffjrhxp3",
+    "model": "models/gemini-2.5-flash",
+    "createTime": "2026-03-11T21:25:28.699911Z",
+    "updateTime": "2026-03-11T21:25:28.699911Z",
+    "expireTime": "2026-03-11T22:25:28.377795153Z",
+    "displayName": "",
+    "usageMetadata": {
+      "totalTokenCount": 3980
+    }
+  }
+}

@@ -6,14 +6,38 @@ import json
 import os
 import sys
 from pathlib import Path
+from typing import Optional, Union
 
-# Project root
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+# Robust Project root discovery
+root = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(root))
 
-from src.agents.evaluate_jobs import JobEvaluator
+try:
+    from dotenv import load_dotenv
+    load_dotenv(root / ".env")
+except ImportError:
+    pass
+
+from src.agents.evaluate_jobs import JobEvaluator, score_to_verdict
 
 
-def load_golden(path=None):
+def map_verdict_to_golden(verdict: str) -> str:
+    """Maps new emoji-based verdicts to legacy golden labels for evaluation."""
+    v = verdict.lower()
+    if "must-apply" in v or "🚀" in v:
+        return "For sure"
+    if "strong match" in v or "✅" in v:
+        return "Worth Trying"
+    if "ambitious" in v or "⚡" in v:
+        return "Ambitious"
+    if "worth" in v or "⚖️" in v or "low priority" in v or "📉" in v:
+        return "Maybe"
+    if "no" in v or "❌" in v:
+        return "Not at all"
+    return "Maybe"
+
+
+def load_golden(path: Optional[Union[str, Path]] = None):
     if path is None:
         path = Path(__file__).resolve().parent / "golden_jobs.json"
     with open(path, "r") as f:
@@ -55,10 +79,17 @@ def run_eval(golden_path=None, verbose=True):
         if engine == "FAILED":
             predicted = "Maybe"
         else:
-            match_type, _, _, _, _, _ = evaluator.parse_evaluation(raw_text)
-            if overlap >= 5 and match_type == "Maybe":
-                match_type = "Worth Trying"
-            predicted = match_type
+            match_type, _, _, _, _, _, _, _, score = evaluator.parse_evaluation(raw_text)
+            
+            # Use unified scoring logic
+            if score == 0:
+                score = evaluator._compute_fallback_score(jd_text, location)
+            
+            verdict = score_to_verdict(score)
+            predicted = map_verdict_to_golden(verdict)
+            
+            if overlap >= 5 and predicted in ["Maybe", "Not at all"]:
+                predicted = "Worth Trying"
 
         expected_n = normalize_match_type(expected)
         predicted_n = normalize_match_type(predicted)

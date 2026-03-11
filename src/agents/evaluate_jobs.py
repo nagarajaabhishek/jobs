@@ -1,15 +1,18 @@
 import logging
 import os
 import re
-import yaml
+import sys
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../../')))
+import yaml # type: ignore
 import json
 from collections import Counter
+from typing import Any, Dict, List, Tuple
 
-from src.core.google_sheets_client import GoogleSheetsClient, normalize_job_url
-from src.core.llm_router import LLMRouter
-from src.core.config import get_evaluation_config
-from src.core.job_filters import passes_evaluation_prefilter
-from src.core.schemas import JobEvaluationSchema
+from src.core.google_sheets_client import GoogleSheetsClient, normalize_job_url # type: ignore
+from src.core.llm_router import LLMRouter # type: ignore
+from src.core.config import get_evaluation_config # type: ignore
+from src.core.job_filters import passes_evaluation_prefilter # type: ignore
+from src.core.schemas import JobEvaluationSchema # type: ignore
 
 # Fallback when config not used
 BATCH_EVAL_SIZE_DEFAULT = 4
@@ -19,11 +22,15 @@ SHEET_BATCH_SIZE_DEFAULT = 25
 def score_to_verdict(score: int) -> str:
     """Map Apply Conviction Score to tiered verdict. Single source of truth for tests and evaluate_all."""
     if score >= 85:
-        return "🔥 Auto-Apply"
+        return "🚀 Must-Apply"
     if score >= 70:
         return "✅ Strong Match"
-    if score >= 50:
+    if score >= 60:
+        return "⚡ Ambitious Match"
+    if score >= 40:
         return "⚖️ Worth Considering"
+    if score >= 20:
+        return "📉 Low Priority"
     return "❌ No"
 
 
@@ -38,7 +45,7 @@ class JobEvaluator:
         ])
         
         # Load verified sponsors
-        self.sponsors = {}
+        self.sponsors: Dict[str, str] = {}
         self.cache_updated = False
         self.sponsors_path = "data/sponsors.yaml"
         if os.path.exists(self.sponsors_path):
@@ -92,7 +99,7 @@ class JobEvaluator:
         if "Likely:" in clean_status or "Unlikely:" in clean_status:
             # Check if we already have it
             existing = self.sponsors.get(clean_company)
-            if not existing or "LLM estimated" in existing or "Not in verified database" in str(existing):
+            if not existing or "LLM estimated" in str(existing) or "Not in verified database" in str(existing):
                 label = "Sponsors" if "Likely:" in clean_status else "Does Not Sponsor"
                 self.sponsors[clean_company] = f"{label} (Learned from JD)"
                 self.cache_updated = True
@@ -108,6 +115,80 @@ class JobEvaluator:
                 self.cache_updated = False
             except Exception as e:
                 print(f"  ❌ Error saving sponsorship cache: {e}")
+
+    def evaluate_single_job(self, url):
+        """
+        Evaluates a single job URL. Primarily used by the ADK orchestrator.
+        """
+        logging.info(f"Evaluating single job: {url}")
+        
+        # 1. Fetch JD
+        jd_text = (self.sheets_client.get_jd_for_url(url) or "").strip()
+        if not jd_text or jd_text.lower() == "none":
+            return {"verdict": "⚠️ Missing JD", "score": 0, "reasoning": "Could not fetch JD."}
+        
+        # 2. Prepare Context
+        sys_prompt = self.load_system_prompt()
+        profiles_prompt = self.load_user_profiles()
+        grounded_sys_prompt = f"{sys_prompt}\n\n### USER PROFILE SUMMARY\n{profiles_prompt}"
+        
+        # 3. Prepare Job Data (minimal)
+        # In a single eval, we might not have the full job record if coming from ADK tool.
+        # But we try to find it in the sheet if it exists.
+        company = "Unknown"
+        location = "United States"
+        records, _ = self.sheets_client.get_new_jobs(limit=1000)
+        for r in records:
+            if normalize_job_url(r.get("Job Link", "")) == normalize_job_url(url):
+                company = r.get("Company", "Unknown")
+                location = r.get("Location", "United States")
+                break
+        
+        sponsor_info = self.get_verified_sponsorship(company)
+        priority = self.get_strategic_priority(location)
+        overlap = self.count_skill_overlap(jd_text)
+        
+        user_prompt = (
+            f"### JOB POSTING\n"
+            f"URL: {url}\n"
+            f"Company: {company}\n"
+            f"Strategic Priority: {priority}\n"
+            f"Verified Sponsorship History: {sponsor_info}\n"
+            f"JD Content: {jd_text}\n[Pre-check: {overlap} skill overlap.]"
+        )
+        
+        # 4. Generate
+        eval_cfg = get_evaluation_config()
+        eval_model = eval_cfg.get("gemini_model")
+        
+        raw_text, engine_used = self.llm.generate_content(
+            grounded_sys_prompt, user_prompt, 
+            formatting_instruction=self.formatting_instruction,
+            model=eval_model
+        )
+        
+        if engine_used == "FAILED":
+            return {"verdict": "FAILED", "score": 0, "reasoning": "LLM failed."}
+        
+        # 5. Parse
+        parsed = self.parse_evaluation(raw_text)
+        match_type, rec, h1b, loc, missing, reasoning, salary, tech, score = parsed
+        
+        if score == 0:
+            score = self._compute_fallback_score(jd_text, location)
+            match_type = score_to_verdict(score)
+            
+        return {
+            "verdict": match_type,
+            "score": score,
+            "recommended_resume": rec,
+            "h1b": h1b,
+            "missing_skills": missing,
+            "reasoning": reasoning,
+            "salary": salary,
+            "tech_stack": tech
+        }
+
 
     def _load_yaml_cache(self, path):
         """Helper to load YAML cache safely."""
@@ -390,19 +471,17 @@ class JobEvaluator:
         profiles_prompt = self.load_user_profiles()
         
         already_seen = self.sheets_client.get_already_evaluated_or_applied_canonical_urls()
-        # Prepare role specializations text for Deep Match
-        role_specs_text = "\n\n".join(self.role_summaries.values())
-        grounded_sys_prompt = f"{sys_prompt}\n\n### USER PROFILE SUMMARY\n{profiles_prompt}\n\n### ROLE-SPECIFIC SPECIALIZATIONS (Use for Deep Matching)\n{role_specs_text}"
+        grounded_sys_prompt = f"{sys_prompt}\n\n### USER PROFILE SUMMARY\n{profiles_prompt}"
         
         profile_keywords = self.get_profile_skill_keywords()
         evaluated_match_types = []
 
         # Track updates per worksheet to minimize API calls
-        updates_by_ws = {}
+        updates_by_ws: Any = {}
 
         # --- 0. DUPLICATE / ALREADY-SEEN ---
-        to_eval = []
-        for job in new_jobs:
+        to_eval: Any = []
+        for job in new_jobs: # type: ignore
             canonical = normalize_job_url(job.get("Job Link") or job.get("url") or "")
             target_ws = job.get("_worksheet") or worksheet
             
@@ -438,14 +517,21 @@ class JobEvaluator:
 
         # --- 2. BATCH LLM EVALUATION ---
         for chunk_start in range(0, len(to_eval), batch_size):
-            chunk = to_eval[chunk_start : chunk_start + batch_size]
+            chunk = to_eval[chunk_start : chunk_start + batch_size] # type: ignore
             job_contexts = []
             for i, job in enumerate(chunk):
                 job_link = job.get("Job Link") or job.get("url") or ""
                 company = job.get("Company") or ""
                 location = job.get("Location") or ""
                 jd_text = (self.sheets_client.get_jd_for_url(job_link) or "").strip()
-                if not jd_text: jd_text = "[No JD in cache.]"
+                
+                # FALLBACK: If there is no real JD text, flag it immediately and do not evaluate.
+                if not jd_text or jd_text.lower() == "none":
+                    target_ws = job.get("_worksheet") or worksheet
+                    if target_ws not in updates_by_ws: updates_by_ws[target_ws] = []
+                    updates_by_ws[target_ws].append((job["_row_index"], "⚠️ Missing JD", "Unknown", "N/A", "N/A", "JD could not be scraped; skipped evaluation.", 0, "Missing JD")) # type: ignore
+                    evaluated_match_types.append("⚠️ Missing JD")
+                    continue
                 
                 # OPTIMIZATIONS: Verified Metadata
                 sponsor_info = self.get_verified_sponsorship(company)
@@ -482,7 +568,7 @@ class JobEvaluator:
                 for job in chunk:
                     target_ws = job.get("_worksheet") or worksheet
                     if target_ws not in updates_by_ws: updates_by_ws[target_ws] = []
-                    updates_by_ws[target_ws].append((job["_row_index"], "Maybe", "Unknown", "N/A", "N/A", "LLM failed", 0, "LLM failed"))
+                    updates_by_ws[target_ws].append((job["_row_index"], "Maybe", "Unknown", "N/A", "N/A", "LLM failed", 0, "LLM failed")) # type: ignore
                     evaluated_match_types.append("Maybe")
                 continue
 
@@ -517,18 +603,18 @@ class JobEvaluator:
                     self.update_sponsorship_cache(job.get("Company"), h1b)
                     self.update_intelligence_caches(job, eval_results)
                     
-                    updates_by_ws[target_ws].append((job["_row_index"], match_type, rec, h1b, loc, missing, score, reasoning))
+                    updates_by_ws[target_ws].append((job["_row_index"], match_type, rec, h1b, loc, missing, score, reasoning)) # type: ignore
                     evaluated_match_types.append(match_type)
                     print(f"    ✅ Eval complete: {job.get('Role Title')} -> {match_type} ({score})")
                 else:
                     fallback = "❌ No"
-                    updates_by_ws[target_ws].append((job["_row_index"], fallback, "Unknown", "N/A", "N/A", "Parse failed", 0, "Parse failed"))
+                    updates_by_ws[target_ws].append((job["_row_index"], fallback, "Unknown", "N/A", "N/A", "Parse failed", 0, "Parse failed")) # type: ignore
                     evaluated_match_types.append(fallback)
 
             # --- PERIODIC SYNC (Every 2 jobs to show immediate progress) ---
             for ws, batch in updates_by_ws.items():
                 if len(batch) >= 2:
-                    print(f"\n  -> Periodic Sync: Updating {len(batch)} jobs in '{ws.title}'...")
+                    print(f"\n  -> Periodic Sync: Updating {len(batch)} jobs in '{ws.title}'...") # type: ignore
                     self.sheets_client.update_evaluated_jobs(ws, batch)
                     batch.clear() 
 
@@ -537,7 +623,7 @@ class JobEvaluator:
             print("\nSaving all evaluations to Google Sheets...")
             for ws, batch in updates_by_ws.items():
                 if batch:
-                    print(f"  Updating {len(batch)} jobs in '{ws.title}'...")
+                    print(f"  Updating {len(batch)} jobs in '{ws.title}'...") # type: ignore
                     self.sheets_client.update_evaluated_jobs(ws, batch)
 
         # 4. Save and Summarize

@@ -7,6 +7,7 @@ import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 from datetime import datetime
 import pandas as pd
+from src.core.utils import cleanup_jd_cache
 
 # Local JD cache path (JDs used for evaluation only; not stored in Sheets)
 DEFAULT_JD_CACHE_PATH = os.path.join(os.getcwd(), "config", "jd_cache.json")
@@ -57,6 +58,11 @@ class GoogleSheetsClient:
         self.client = None
         self.sheet = None
         self._cached_existing_urls = None
+        
+        # Run Janitor
+        removed, migrated = cleanup_jd_cache(self.jd_cache_path)
+        if removed > 0 or migrated > 0:
+            print(f"🧹 JD Cache Janitor: Removed {removed} old entries, migrated {migrated} to new format.")
 
     def _load_jd_cache(self):
         """Load JD cache from file (canonical_url -> description)."""
@@ -79,7 +85,10 @@ class GoogleSheetsClient:
         if not canonical:
             return ""
         cache = self._load_jd_cache()
-        return cache.get(canonical, "") or ""
+        data = cache.get(canonical, "")
+        if isinstance(data, dict):
+            return data.get("jd", "")
+        return str(data) # Fallback for old format if somehow not migrated
 
     def connect(self):
         """Authenticates with Google Sheets API and selects today's tab."""
@@ -261,7 +270,10 @@ class GoogleSheetsClient:
             
             desc = (job.get("description") or "").strip()
             if desc:
-                jd_cache_updates[canonical] = desc[:50000]
+                jd_cache_updates[canonical] = {
+                    "jd": desc[:50000],
+                    "timestamp": datetime.now().strftime("%Y-%m-%d")
+                }
             
             # Basic row structure (Fixed A-G)
             row = [""] * 14 # ensure enough space

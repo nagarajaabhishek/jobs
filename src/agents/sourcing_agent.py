@@ -1,22 +1,29 @@
 import logging
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-from jobspy import scrape_jobs
-from src.core.google_sheets_client import GoogleSheetsClient
-from src.core.config import get_sourcing_config, get_evaluation_config
-from src.core.job_filters import passes_sourcing_filter
-from src.scrapers.community_scraper import CommunityScraper
-from src.scrapers.jobright_scraper import JobrightScraper
-from src.scrapers.arbeitnow_scraper import ArbeitnowScraper
-from src.scrapers.ats_scraper import ATS_Scraper
-from src.scrapers.remotive_scraper import RemotiveScraper
-from src.scrapers.remoteok_scraper import RemoteOKScraper
-from src.scrapers.ashby_scraper import AshbyScraper
-from src.core.llm_router import LLMRouter
+from jobspy import scrape_jobs # type: ignore
+from src.core.google_sheets_client import GoogleSheetsClient # type: ignore
+from src.core.config import get_sourcing_config, get_evaluation_config # type: ignore
+from src.core.job_filters import passes_sourcing_filter # type: ignore
+from src.scrapers.community_scraper import CommunityScraper # type: ignore
+from src.scrapers.jobright_scraper import JobrightScraper # type: ignore
+from src.scrapers.arbeitnow_scraper import ArbeitnowScraper # type: ignore
+from src.scrapers.ats_scraper import ATS_Scraper # type: ignore
+from src.scrapers.remotive_scraper import RemotiveScraper # type: ignore
+from src.scrapers.remoteok_scraper import RemoteOKScraper # type: ignore
+from src.scrapers.ashby_scraper import AshbyScraper # type: ignore
+from src.scrapers.dice_scraper import DiceScraper # type: ignore
+from src.core.llm_router import LLMRouter # type: ignore
 
-import pandas as pd
+import pandas as pd # type: ignore
 import json
 import os
+import requests # type: ignore
+from bs4 import BeautifulSoup # type: ignore
+try:
+    from playwright.sync_api import sync_playwright
+except ImportError:
+    sync_playwright = None
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -37,7 +44,7 @@ class SourcingAgent:
         self.remotive_scraper = RemotiveScraper(limit=100)
         self.remoteok_scraper = RemoteOKScraper(limit=80)
         self.ashby_scraper = AshbyScraper(boards=ats.get("ashby"))
-        self.ashby_scraper = AshbyScraper(boards=ats.get("ashby"))
+        self.dice_scraper = DiceScraper()
         self.llm = LLMRouter()
         
         # Load Phase 1 Dense Matrix for Phase 2 Sniffing
@@ -65,6 +72,7 @@ class SourcingAgent:
             ("Remotive", self.remotive_scraper, False),
             ("RemoteOK", self.remoteok_scraper, False),
             ("Ashby", self.ashby_scraper, False),
+            ("Dice", self.dice_scraper, True),
         ]
         for name, scraper, use_queries in sources:
             try:
@@ -251,6 +259,117 @@ class SourcingAgent:
             all_jobs.extend(community_jobs)
 
         return all_jobs
+        
+    def _fetch_jd_manually(self, url: str) -> str:
+        """
+        Secondary JD Resolution: Fallback used when JobSpy or APIs fail to return a JD.
+        Attempts to scrape the main text content of the page directly.
+        Uses a tiered approach:
+        1. Fast Scrape (Requests/BS4)
+        2. Deep Scrape (Playwright) for JS-heavy sites
+        """
+        if not url or "google.com" in url: return ""
+        
+        # 1. Fast Scrape
+        jd = self._fetch_jd_static(url)
+        if len(jd) > 300:
+            return jd
+            
+        # 2. Deep Scrape (Playwright Fallback)
+        if sync_playwright:
+            print(f"    🔄 Fast Scrape too short ({len(jd)} chars). Trying Playwright...")
+            jd_deep = self._fetch_jd_playwright(url)
+            if len(jd_deep) > len(jd):
+                return jd_deep
+        
+        return jd
+
+    def _fetch_jd_static(self, url: str) -> str:
+        """Fast, static HTML extraction."""
+        print(f"    🔍 Static JD Fetch: {url}...")
+        try:
+            headers = {
+                "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+            }
+            r = requests.get(url, headers=headers, timeout=10)
+            r.raise_for_status()
+            
+            soup = BeautifulSoup(r.text, "html.parser")
+            for script in soup(["script", "style", "nav", "footer", "header"]):
+                script.decompose()
+                
+            # Common ATS selectors
+            selectors = [
+                ".job-description", "#job-description", ".description", 
+                ".posting-description", "#content", "main", "[data-automation-id='job-posting-description']",
+                ".jd-content", ".careers-job-description"
+            ]
+            
+            for selector in selectors:
+                found = soup.select_one(selector)
+                if found:
+                    content = found.get_text(separator="\n").strip()
+                    if len(content) > 100:
+                        print(f"    ✅ Static fetch successful ({len(content)} chars).")
+                        return self._clean_text(content)
+            
+            return self._clean_text(soup.get_text(separator="\n"))
+        except Exception as e:
+            print(f"    ⚠ Static fetch failed: {e}")
+            return ""
+
+    def _fetch_jd_playwright(self, url: str) -> str:
+        """Deep scrape using headless browser for JS-heavy sites."""
+        if not sync_playwright: return ""
+        
+        try:
+            with sync_playwright() as p:
+                browser = p.chromium.launch(headless=True)
+                page = browser.new_page()
+                page.goto(url, wait_until="networkidle", timeout=20000)
+                
+                # Give it a tiny bit extra for late-loading React components
+                page.wait_for_timeout(2000)
+                
+                # Check same selectors in browser context
+                content = ""
+                selectors = [
+                    ".job-description", "#job-description", ".description", 
+                    ".posting-description", "#content", "main", "[data-automation-id='job-posting-description']",
+                    ".jd-content", ".careers-job-description"
+                ]
+                
+                for selector in selectors:
+                    try:
+                        element = page.query_selector(selector)
+                        if element:
+                            text = element.inner_text()
+                            if len(text) > 100:
+                                content = text
+                                break
+                    except:
+                        continue
+                
+                if not content:
+                    content = page.content() # Fallback to full HTML if selector fails, though less clean
+                    soup = BeautifulSoup(content, "html.parser")
+                    content = soup.get_text(separator="\n")
+                
+                browser.close()
+                if len(content) > 100:
+                    print(f"    ✅ Playwright fetch successful ({len(content)} chars).")
+                    return self._clean_text(content)
+        except Exception as e:
+            print(f"    ⚠ Playwright fetch failed: {e}")
+        return ""
+
+    def _clean_text(self, text: str) -> str:
+        """Helper to cleanup scraped text."""
+        import re
+        # Remove excessive whitespace/newlines
+        text = re.sub(r'\n+', '\n', text)
+        text = re.sub(r' +', ' ', text)
+        return text.strip()
 
 
     def filter_jobs(self, jobs):
@@ -336,13 +455,20 @@ class SourcingAgent:
             # For now, we'll just log them or add to a side-car field.
             tags = self.tag_job(job)
             
+            # Fallback JD resolution if missing
+            desc = job.get("description", "")
+            if (not desc or len(desc) < 200 or desc.lower() == "none") and job.get("url"):
+                manual_desc = self._fetch_jd_manually(job.get("url"))
+                if manual_desc:
+                    desc = manual_desc
+            
             clean_job = {
                 "title": job.get("title", ""),
                 "company": job.get("company", ""),
                 "url": job.get("url") or job.get("job_url", ""),
                 "location": job.get("location", ""),
                 "source": job.get("source") or job.get("site", "Unknown"),
-                "description": job.get("description", ""),
+                "description": desc,
                 "tags": tags # NEW field for Sheets
             }
             clean_jobs.append(clean_job)

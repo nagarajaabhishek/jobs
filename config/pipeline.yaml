@@ -31,7 +31,7 @@ sourcing:
 
 evaluation:
   provider: "gemini"
-  sourcing_model: "gemini-2.5-flash-lite"
+  sourcing_model: "gemini-2.5-flash"
   gemini_model: "gemini-2.5-flash"
   batch_eval_size: 10
   sheet_batch_size: 50
@@ -42,7 +42,7 @@ evaluation:
 # =================================================================
 
 candidate_constraints:
-  years_of_experience: 3.0
+  years_of_experience: 2.0
   visa_status: "F-1 (Requires H1B Sponsorship)"
   clearance: "None"
 

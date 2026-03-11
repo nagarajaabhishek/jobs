@@ -1,7 +1,7 @@
 {
   "global_traits": {
     "name": "Candidate",
-    "years_of_experience": 3.0,
+    "years_of_experience": 2.0,
     "visa_status": "F-1 (Requires H1B Sponsorship)",
     "clearance": "None",
     "education": [
@@ -23,7 +23,8 @@
         "Project Tools: Jira, Asana, Notion, Microsoft Project, Figma, Power BI, Google Analytics, Excel.",
         "AI Enhancement: AI-Powered SOP Architecture, Generative AI (Gemini, GPT-4o), n8n Automation, Prompt Engineering, AI Product Strategy, Model Evaluation Metrics, Automated Workflow Orchestration.",
         "Agile Frameworks: Agile, Scrum, Waterfall, Kanban, Sprint Planning, Backlog Management."
-      ]
+      ],
+      "ideal_role": {}
     },
     "TPM": {
       "focus": "Technical Program Manager specializing in AI/ML Infrastructure and Scalable Systems with a background in Computer Science. Expert in architecting Multi-Agent Systems, reducing Operational Overhead, and driving Cross-Functional Alignment across engineering and business teams. Proficient in Cloud Architecture (AWS), API Design, and Agile Delivery to ship high-reliability products.",
@@ -33,7 +34,28 @@
         "DevOps & Infrastructure: Docker, Kubernetes (K8s) concepts, Terraform (IaC), GitHub Actions, PostgreSQL, MongoDB.",
         "AI & Analytics: LLMs (GPT-4o, Claude, Gemini), RAG Architectures, LangChain/LangGraph, Prompt Engineering, Python (Pandas, NumPy), Power BI, Tableau.",
         "Languages: Python, SQL, JavaScript/TypeScript, HTML/CSS."
-      ]
+      ],
+      "ideal_role": {
+        "seniority": "Beginner to Associate (0-3 years preferred)",
+        "target_domains": [
+          "AI/ML Infrastructure",
+          "Productivity SaaS",
+          "Fintech",
+          "Developer Platforms"
+        ],
+        "critical_match_signals": [
+          "Early-career TPM / Junior PM roles",
+          "Multi-Agent AI / LangGraph / LangChain mentioned",
+          "FastAPI / Backend orchestration",
+          "CS degree + engineering project ownership"
+        ],
+        "deal_breakers": [
+          "Requires 5+ years of industry experience",
+          "Requires active TS/SCI clearance",
+          "Strictly Hardware / Embedded / ASIC focus",
+          "Entry-level Intern roles (unless high-tech AI)"
+        ]
+      }
     },
     "SM": {
       "focus": "Certified Scrum Master (CSPO) and Agile Practitioner with a strong foundation in Servant Leadership, Stakeholder Networking, and Process Improvement. Proven ability to facilitate Scrum Ceremonies, remove Impediments, and improve Team Velocity by fostering a culture of collaboration. Skilled in leveraging Product Storytelling to align teams and Generative AI for backlog refinement.",
@@ -43,7 +65,25 @@
         "Soft Skills: Product Storytelling, Network Building, Stakeholder Management, Communication.",
         "Tools: Jira, Linear, Confluence, Trello, Asana, Mural, Miro, Slack, Zoom, Microsoft Office (Word, Excel, PowerPoint), Google Workspace (Docs, Sheets).",
         "AI & Tech: Generative AI (ChatGPT/Gemini) for Documentation, Predictive Analytics, SDLC, CI/CD, Clerk (Auth), NeonDB."
-      ]
+      ],
+      "ideal_role": {
+        "seniority": "Beginner to Associate (Junior Scrum Master / Delivery Analyst)",
+        "target_domains": [
+          "Fintech",
+          "Healthtech",
+          "Developer Ecosystems"
+        ],
+        "critical_match_signals": [
+          "Entry-level Scrum Master / Agile Facilitator",
+          "Technical literacy (CS background)",
+          "Impediment Removal / Servant Leadership",
+          "AI-enhanced documentation"
+        ],
+        "deal_breakers": [
+          "Requires 5+ years as a Dedicated SM",
+          "Legacy waterfall environments with no intent to transition"
+        ]
+      }
     },
     "TECHNICAL_PRODUCT_MANAGER": {
       "focus": "Technical Product Manager leveraging deep engineering expertise to drive \\textbf{Product Strategy} and \\textbf{Customer Satisfaction}. Adept at combining \\textbf{Technical Market Research} with \\textbf{Human Empathy} to build user-centric solutions. Expert in bridging the gap between complex engineering execution and business goals, ensuring product alignment with user needs and market demands.",
@@ -53,7 +93,8 @@
         "Agile & Methodologies: Scrum, Kanban, SAFe, Linear, Jira, Confluence, User Story Mapping, Sprint Planning, Retrospectives.",
         "AI & Analytics: LLMs (GPT-4o, Claude, Gemini), RAG Architectures, LangChain/LangGraph, Prompt Engineering, Power BI, Amplitude.",
         "Prototyping & Vibe Coding: Antigravity, Cursor, Windsurf, Replit, v0, Bolt.new, Rapid Prototyping."
-      ]
+      ],
+      "ideal_role": {}
     },
     "TPM_GENERATED": {
       "focus": "Technical Product Manager leveraging deep engineering expertise to drive \\textbf{Product Strategy} and \\textbf{Customer Satisfaction}. Adept at combining \\textbf{Technical Market Research} with \\textbf{Human Empathy} to build user-centric solutions. Expert in bridging the gap between complex engineering execution and business goals, ensuring product alignment with user needs and market demands.",
@@ -63,7 +104,8 @@
         "Agile & Methodologies: Scrum, Kanban, SAFe, Linear, Jira, Confluence, User Story Mapping, Sprint Planning, Retrospectives.",
         "AI & Analytics: LLMs (GPT-4o, Claude, Gemini), RAG Architectures, LangChain/LangGraph, Prompt Engineering, Power BI, Amplitude, TensorFlow, PyTorch, Hugging Face.",
         "Prototyping & Vibe Coding: Antigravity, Cursor, Windsurf, Replit, v0, Bolt.new, Rapid Prototyping."
-      ]
+      ],
+      "ideal_role": {}
     },
     "MANAGER": {
       "focus": "Strategic Program and Operations Manager with a track record of building scalable systems and leading complex, cross-functional projects from ideation to launch. Expert in driving operational efficiency and reliable delivery through data-driven process improvement, stakeholder management, and team leadership.",
@@ -74,7 +116,8 @@
         "Project Tools: Jira, Asana, Notion, Microsoft Project, Figma, Power BI, Google Analytics, Excel.",
         "AI Enhancement: AI-Powered SOP Architecture, Generative AI (Gemini, GPT-4o), n8n Automation, Prompt Engineering, AI Product Strategy, Model Evaluation Metrics, Automated Workflow Orchestration.",
         "Agile Frameworks: Agile, Scrum, Waterfall, Kanban, Sprint Planning, Backlog Management."
-      ]
+      ],
+      "ideal_role": {}
     },
     "GTM": {
       "focus": "Product & Growth Professional specializing in GTM Strategy, Community Building, and Technical Product Marketing. Expert in orchestrating two-sided marketplace launches and bridging the gap between engineering innovation and commercial adoption. Proven ability to drive user acquisition, optimize revenue operations, and build thriving technical communities.\n",
@@ -83,7 +126,8 @@
         "Growth Engineering: n8n (Workflow Automation), Python (Scripting), SQL, Zapier, API Integration, Cursor IDE.",
         "Content & Operations: Technical Writing, Notion (SOPs), Figma (Assets), Brand Strategy, Event Management.",
         "Analytics & Research: Market Research, User Interviews, NPS Analysis, A/B Testing, Google Analytics."
-      ]
+      ],
+      "ideal_role": {}
     },
     "PO": {
       "focus": "Certified Product Owner (CSPO) with a track record of driving Agile Product Delivery and Backlog Management. Expert in translating business needs into actionable User Stories and technical requirements. Skilled in facilitating Scrum ceremonies and leveraging Agentic Workflows and Generative AI to accelerate product velocity and automate discovery at scale.",
@@ -93,7 +137,25 @@
         "Cloud & DevOps: AWS (S3, EC2, Lambda), Docker, Terraform (IaC), Kubernetes, CI/CD Pipelines, API Integration, SQL, Python.",
         "AI & Automation: AI Product Strategy, Gemini, GPT-4o, n8n Workflows, Prompt Engineering, Multi-Agent Systems, Automated Discovery Analysis.",
         "Project Tools: Jira, Linear, Confluence, Asana, Miro, Notion, Figma, Power BI, Tableau, Google Analytics, Excel."
-      ]
+      ],
+      "ideal_role": {
+        "seniority": "Beginner to Associate (0-2 years preferred)",
+        "target_domains": [
+          "B2B SaaS",
+          "E-commerce",
+          "AI-driven Tools"
+        ],
+        "critical_match_signals": [
+          "Junior Product Owner / Associate PM roles",
+          "Product Lifecycle Management (PLC)",
+          "User Research / NPS Improvement",
+          "CS Degree + AI-driven Discovery focus"
+        ],
+        "deal_breakers": [
+          "Requires 5+ years of PM experience",
+          "Senior Director / VP roles"
+        ]
+      }
     }
   }
 }

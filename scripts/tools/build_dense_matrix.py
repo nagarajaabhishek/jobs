@@ -148,7 +148,8 @@ def build_dense_matrix():
                      
             dense_matrix["role_variants"][role_key] = {
                 "focus": role_data.get('summary', ''),
-                "core_skills": role_skills
+                "core_skills": role_skills,
+                "ideal_role": role_data.get('ideal_role', {})
             }
             print(f"Loaded variant: {role_key}")
 
