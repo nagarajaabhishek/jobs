@@ -19,7 +19,7 @@ function Navigation() {
       <div className="nav-main">
         <Link to="/" onClick={closeMenu} className="nav-logo">
           <BrainCircuit color="var(--accent-primary)" size={28} />
-          <span>JobsProof.com <span className="logo-subtext">by Job Automation</span></span>
+          <span>Thara <span className="logo-subtext">by Job Automation</span></span>
         </Link>
 
         {/* Desktop Links */}
@@ -79,17 +79,18 @@ function App() {
             <div className="footer-content">
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '700', fontSize: '1.25rem', marginBottom: '16px' }}>
                 <BrainCircuit color="var(--accent-primary)" size={24} />
-                <span>JobsProof.com</span>
+                <span>Thara</span>
               </div>
               <p className="footer-text">Built to eliminate the friction between university curriculums and industry demands.</p>
             </div>
             <div className="footer-bottom">
-              <p className="footer-text">© 2026 Job Automation. All rights reserved.</p>
+              <p className="footer-text">© 2026 Thara AI. All rights reserved.</p>
               <div className="footer-links">
-                <a href="https://github.com/nagarajaabhishek/jobs" target="_blank" rel="noopener noreferrer">Job Automation Repo</a>
-                <a href="https://github.com/nagarajaabhishek/resume_agent" target="_blank" rel="noopener noreferrer">Resume Agent Repo</a>
-                <a href="#">Privacy Policy</a>
-                <a href="#">Terms of Service</a>
+                <Link to="/">Students</Link>
+                <Link to="/for-universities">Universities</Link>
+                <a href="https://github.com/nagarajaabhishek/jobs" target="_blank" rel="noopener noreferrer">ADK Orchestrator</a>
+                <a href="https://github.com/nagarajaabhishek/resume_agent" target="_blank" rel="noopener noreferrer">LaTeX Core</a>
+                <a href="#">Privacy</a>
               </div>
             </div>
           </div>
