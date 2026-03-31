@@ -1,6 +1,6 @@
 [build]
   base = "website_ui"
-  publish = "website_ui/dist"
+  publish = "dist"
   command = "npm run build"
 
 [build.environment]
