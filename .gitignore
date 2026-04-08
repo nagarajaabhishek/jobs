@@ -16,6 +16,10 @@ client_secret.json
 # Local JD cache (used for evaluation only; not in Sheets)
 config/jd_cache.json
 
+# Learning / digest artifacts (local)
+data/digests/
+data/feedback_events.jsonl
+
 # IDE
 .idea/
 .vscode/
