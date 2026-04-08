@@ -22,8 +22,15 @@ sourcing:
   # 3. PIPELINE LIMITS
   max_workers: 4
   expand_ai_queries: false
-  use_ai_filter: true
-  
+  # LLM pre-filter after static rules; costs extra tokens. Enable when queries are noisy.
+  use_ai_filter: false
+  # Omit glassdoor by default (often 400s / location parse issues). Override as needed.
+  jobspy_sites:
+    - linkedin
+    - indeed
+    - google
+    - zip_recruiter
+
   ats_boards:
     greenhouse: ["canva", "discord", "figma"]
     lever: ["netflix", "palantir", "discord"]
@@ -36,6 +43,31 @@ evaluation:
   batch_eval_size: 10
   sheet_batch_size: 50
   limit: 50
+
+# Learned-pattern calibration (post-LLM). See data/learned_patterns.yaml
+learning:
+  enabled: true
+  max_abs_delta: 15
+  patterns_path: "data/learned_patterns.yaml"
+
+digest:
+  enabled: true
+  top_n: 20
+  output_dir: "data/digests"
+
+# End-of-run hooks (digest / feedback ingest). Automation hooks stay off by default.
+cycle:
+  run_digest_after_pipeline: true
+  run_feedback_ingest: false
+  automation_hooks_enabled: false
+  # Build a role/sector + upskilling artifact under data/strategy/
+  run_career_strategy: false
+
+# Existing Google Sheet: paste the full URL or the ID between /d/ and /edit.
+# Overrides name-based open/create. Same value can go in .env as GOOGLE_SHEET_ID instead.
+# Share the sheet with your service account email (Editor).
+sheet:
+  spreadsheet_id: "https://docs.google.com/spreadsheets/d/1I9ultC0HsPdtC-BukgpU1AzImH2aZGFkfLFYOccbHkA/edit"
 
 # =================================================================
 # JOB FILTERS
@@ -74,6 +106,29 @@ filters:
     - "pmo"
     - "scrum"
     - "agile"
+    - "product director"
+    - "program director"
+    - "associate product"
+
+  # Soft seniority: blocked only if no phrase from seniority_soft_bypass_substrings matches
+  seniority_soft_exclusions:
+    - "lead"
+    - "director"
+  seniority_soft_bypass_substrings:
+    - "product manager"
+    - "product owner"
+    - "project manager"
+    - "program manager"
+    - "business analyst"
+    - "scrum master"
+    - "product lead"
+    - "project lead"
+    - "program lead"
+    - "technical program"
+    - "product director"
+    - "program director"
+    - "director of product"
+    - "project director"
 
   # Exclude jobs containing these (Seniority)
   seniority_exclusions:
@@ -190,7 +245,7 @@ filters:
     - ", wy"
     - ", dc"
 
-  # Forbidden Countries/Cities
+  # Forbidden Countries/Cities (word-boundary match for single tokens; avoids Indiana vs India)
   forbidden_locations:
     - "india"
     - "uk"
