@@ -3,7 +3,7 @@
 These rules govern the behavior of the AI agent and the execution of the pipeline.
 
 ## 🛡 Stability & Costs
-1.  **Local-First Policy**: ALWAYS prioritize `ollama` as the LLM provider. Only use cloud providers (Gemini/OpenRouter) if specifically requested by the user or as a verified emergency backup.
+1.  **LLM Policy**: Job-fit evaluation uses **`LLMRouter`** with `evaluation.provider` in `config/pipeline.yaml` (**openrouter** by default, or **gemini** / **openai** for rollback). OpenRouter uses `OPENROUTER_API_KEY` and optional `openrouter_fallback_model`. Avoid large unapproved cloud batches that surprise cost.
 2.  **No Cost Surprises**: Never run large batches on cloud-based models without explicit user confirmation of the estimated cost.
 
 ## 📊 Performance & UI

@@ -1,0 +1,51 @@
+id: program_project_management
+display_name: "Program / project management"
+
+title_match:
+  - "program manager"
+  - "project manager"
+  - "technical program"
+  - "delivery manager"
+  - "scrum master"
+  - "agile coach"
+  - "pmo"
+  - "project lead"
+  - "program lead"
+
+block_title_tokens:
+  - "senior"
+  - "sr."
+  - "sr "
+  - "staff"
+  - "principal"
+  - "director"
+  - "head of"
+  - "vp "
+  - "vice president"
+  - "executive"
+  - "distinguished"
+
+# intern / internship optional via title_fit_user.yaml include_internship_entry_signals
+prefer_title_tokens:
+  - "associate"
+  - "assistant"
+  - "junior"
+  - "graduate"
+  - "entry"
+  - "early career"
+  - "associate project"
+  - "associate program"
+  - "junior project"
+
+ambiguous_title_tokens:
+  - "lead"
+
+strict_entry_substrings_when_untitled_pm:
+  - "program manager"
+  - "project manager"
+
+min_yoe_patterns:
+  - '(?i)(?:minimum|min\.?|at least|require)\s*(\d+)\+?\s*years?'
+  - '(?i)(\d+)\+?\s*years?\s+(?:of\s+)?(?:experience|exp\.?)'
+
+slack_years_above_required: 1.0

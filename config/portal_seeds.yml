@@ -1,0 +1,26 @@
+# Optional ATS board slug seeds (merged into sourcing.ats_boards at runtime).
+# Same slugs as career-ops / Greenhouse public boards — extend freely.
+# Docs: apps/cli/legacy/scrapers/ats_scraper.py, AshbyScraper.
+
+ats_boards:
+  greenhouse:
+    - anthropic
+    - openai
+    - notion
+    - linear
+    - vercel
+  lever: []
+  ashby:
+    - anthropic
+    - openai
+    - notion
+    - linear
+    - vercel
+    - ramp
+
+# Reference URLs only (not scraped automatically). Use for manual sourcing or future scrapers.
+job_board_portals:
+  - name: Ashby job board
+    url: https://jobs.ashbyhq.com/
+  - name: Greenhouse board directory
+    url: https://boards.greenhouse.io/
