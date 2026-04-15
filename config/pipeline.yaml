@@ -21,6 +21,9 @@ sourcing:
 
   # 3. PIPELINE LIMITS
   max_workers: 4
+  # Stop interleaved loop when this many rows on today's tab reach Apply Score >= target_score_min.
+  target_count: 50
+  target_score_min: 80
   expand_ai_queries: false
   # LLM pre-filter after static rules; costs extra tokens. Enable when queries are noisy.
   use_ai_filter: false
@@ -36,13 +39,97 @@ sourcing:
     lever: ["netflix", "palantir", "discord"]
     ashby: ["ashby", "notion", "figma", "linear", "vercel", "ramp"]
 
+  # After running apps/cli/scripts/tools/learn_sourcing_filters_from_sheet.py and reviewing YAML:
+  apply_learned_title_blocks: true
+  learned_title_blocks_path: data/sourcing_learned_title_blocks.yaml
+
+  # https://github.com/jobright-ai — only README job tables aligned with your role focus (PM/BA + H1B tech).
+  # Set to [] to turn off Jobright GitHub feeds entirely.
+  jobright_github_repos:
+    - 2026-Product-Management-Internship
+    - 2026-Product-Management-New-Grad
+    - 2026-Business-Analyst-Internship
+    - 2026-Business-Analyst-New-Grad
+    - Daily-H1B-Jobs-In-Tech
+
+  # Run Jobright GitHub READMEs before the JobSpy loop; end-of-run community pass skips Jobright to avoid dup work.
+  run_jobright_first: true
+  # Max JobSpy interleaved iterations (each iteration sources one query round + evaluates NEW).
+  interleaved_max_iterations: 10
+  # After Jobright scrape, run up to this many evaluate_all(NEW, limit=evaluation.limit) waves before JobSpy.
+  jobright_eval_max_waves: 1
+
+  # Optional public ATS endpoints in once-per-cycle community phase (keep off until slugs are curated).
+  run_smartrecruiters_once: false
+  smartrecruiters_companies: []
+  run_recruitee_once: false
+  recruitee_companies: []
+
 evaluation:
+  # gemini | openai | openrouter (OpenRouter: OPENROUTER_API_KEY only; see openrouter_* below)
   provider: "gemini"
-  sourcing_model: "gemini-2.5-flash"
+  # When provider is gemini — primary fails or returns no text:
+  #   openai_then_gemma — OpenAI then hosted Gemma (same GEMINI_API_KEY)
+  #   openai | gemma | gemma_then_openai | none
+  # When provider is openrouter — use second model on empty/429 (if openrouter_fallback_model set):
+  #   openrouter_fallback | none
+  fallback_provider: "openai"
+  # OpenRouter model slugs (verify on https://openrouter.ai/models)
+  openrouter_model: "google/gemini-2.5-flash"
+  openrouter_fallback_model: "openai/gpt-4o-mini"
+  openrouter_site_url: ""
+  openrouter_app_name: "Job Automation"
+  openrouter_fast_fallback: true
+  openai_model: "gpt-4o-mini"
+  # Hosted open models via Google AI (gemma-4-31b-it, …) — gemini provider + GEMINI_API_KEY
+  gemma_model: "gemma-4-31b-it"
+  # Sourcing AI filter / title-fit LLM: use OpenRouter slug when provider is openrouter
+  sourcing_model: "google/gemini-2.5-flash"
+  # Primary model when provider is gemini (or Gemma id on same key)
   gemini_model: "gemini-2.5-flash"
-  batch_eval_size: 10
+  # Smaller batches = fewer truncated multi-JSON responses (common with Jobright + long JDs).
+  batch_eval_size: 3
   sheet_batch_size: 50
   limit: 50
+  # Per-job JD cap inside batched eval prompts only (0 = unlimited). Full JD stays in jd_cache.
+  batch_jd_max_chars: 12000
+  # Token saver: do not send rows to LLM when deterministic fallback estimate is below this score.
+  skip_llm_if_fallback_below: 70
+  # First pass on compact JD snippet, then retry full JD only for gray-zone scores.
+  snippet_first_enabled: true
+  snippet_first_chars: 2200
+  gray_zone_full_jd_retry: true
+  gray_zone_min_score: 68
+  gray_zone_max_score: 82
+  # If Gemini fails repeatedly, temporarily use OpenAI first to reduce repeated failed attempts.
+  provider_stickiness_enabled: true
+  provider_stickiness_failures: 2
+  provider_stickiness_calls: 20
+  # Second LLM pass: markdown packet under data/deep_packets/ (uses LLMRouter; same provider/fallback as evaluation)
+  deep_eval_enabled: false
+  deep_eval_min_score: 90
+  # Per-row JSON for resume tailoring / external PDF tools (MUST_APPLY / score >= 90)
+  export_tailor_json: false
+  # Candidate threshold for tailoring artifacts and pipeline tailoring phase.
+  tailor_min_score: 80
+  # TailorAgent QA loop controls (LLM self-heal + deterministic QA fixes).
+  tailor_max_qa_attempts: 10
+  # Stop early when the same QA error signature repeats this many times without deterministic improvement.
+  tailor_stagnation_limit: 3
+  # Gemini only: first HTTP 429 → hand off to fallback_provider (OpenAI) instead of long retries.
+  gemini_429_fast_openai_fallback: true
+  # Optional end-of-run cleanup passes.
+  run_needs_review_sweep: true
+  needs_review_sweep_limit: 300
+  run_llm_failed_sweep: true
+  llm_failed_sweep_limit: 300
+  # Strict cleanup: pipeline keeps sweeping until today's tab has no NEW/NEEDS_REVIEW/LLM_FAILED rows.
+  enforce_clean_sheet_before_finish: true
+  clean_sheet_pass_limit: 300
+  clean_sheet_max_passes: 8
+  # Hard gates before pipeline can finish.
+  require_target_count_before_finish: true
+  require_clean_sheet_before_finish: true
 
 # Learned-pattern calibration (post-LLM). See data/learned_patterns.yaml
 learning:
@@ -62,12 +149,56 @@ cycle:
   automation_hooks_enabled: false
   # Build a role/sector + upskilling artifact under data/strategy/
   run_career_strategy: false
+  # Filter-learning agent: mines low-vs-high score title phrases from Sheets each cycle.
+  run_filter_learning: true
+  filter_learning_output: "data/sourcing_learned_title_blocks.yaml"
+  filter_learning_neg_max_score: 65
+  filter_learning_pos_min_score: 80
+  filter_learning_min_neg_count: 3
+  filter_learning_min_lift: 2.0
+  filter_learning_max_phrases: 100
+  filter_learning_dry_run: false
+  # After each successful pipeline: scan recent YYYY-MM-DD tabs → ranked sources/companies (no LLM).
+  run_sourcing_hints: true
+  sourcing_hints_output: "data/sourcing_hints.yaml"
+  sourcing_hints_recent_tabs: 21
+  # sourcing_hints_tab_filter: ""   # optional substring on tab title
+  sourcing_hints_quiet: true
+
+# Title & seniority gate (multi-track). See config/title_fit/tracks/ and data/profiles/title_fit_user.yaml
+title_fit:
+  enabled: false
+  require_track_match: true
+  llm_disambiguation_enabled: false
+  ambiguous_default: reject
+  snippet_max_chars: 1200
+
+# Resume tailoring (TailorAgent + scripts/tools/tailor_from_urls.py). YAML lives under
+# core_agents/resume_agent/.agent/data/<profile>/.
+resume:
+  profile: "Abhishek"
+  base_role_yaml: "role_product_ops.yaml"
+  agent_dir: "core_agents/resume_agent/.agent"
 
 # Existing Google Sheet: paste the full URL or the ID between /d/ and /edit.
 # Overrides name-based open/create. Same value can go in .env as GOOGLE_SHEET_ID instead.
 # Share the sheet with your service account email (Editor).
 sheet:
   spreadsheet_id: "https://docs.google.com/spreadsheets/d/1I9ultC0HsPdtC-BukgpU1AzImH2aZGFkfLFYOccbHkA/edit"
+  # Same workbook: create/use this tab to paste job URLs for JD fetch + resume tailoring (optional).
+  manual_jd_tailor_tab: "Manual_JD_Tailor"
+  # Daily tab = YYYY-MM-DD. For overnight laptop runs after midnight, use "yesterday" to keep working
+  # on the prior calendar day's tab. Override per run: SHEET_TAB_DATE=2026-04-09
+  worksheet_tab_date_mode: "today"
+  # worksheet_tab_date_mode: "yesterday"
+  # worksheet_tab_date_mode: "fixed"
+  # worksheet_tab_date_fixed: "2026-04-09"
+
+# Failed Sheet writes (after retries) go to SQLite; replay: python scripts/tools/sync_sheet_outbox.py
+# Override: PIPELINE_OUTBOX_DB, LOCAL_STORE_ENABLED=1, or local_store.enabled: false
+local_store:
+  enabled: true
+  db_path: data/pipeline_outbox.db
 
 # =================================================================
 # JOB FILTERS
@@ -177,6 +308,28 @@ filters:
     - "testing engineer"
     - "product engineer"
     - "data analyst"
+    - "customer support"
+    - "support specialist"
+    - "dental"
+    - "dentist"
+    - "pharmacy"
+    - "pharmacist"
+    - "sales representative"
+    - "field technician"
+    - "automotive"
+
+  # Exclude domain text markers (description/url) even when title looks relevant.
+  unrelated_text_keywords:
+    - "customer support"
+    - "call center"
+    - "dental"
+    - "dentist"
+    - "orthodont"
+    - "pharmacy"
+    - "pharmacist"
+    - "automotive technician"
+    - "diesel mechanic"
+    - "retail sales"
 
   # Security Clearance
   clearance_keywords:

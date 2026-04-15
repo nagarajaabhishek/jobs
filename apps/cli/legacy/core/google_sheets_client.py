@@ -1,16 +1,19 @@
 import json
 import os
 import re
+import sys
 import time
 from urllib.parse import urlparse, urlunparse, parse_qs, urlencode
 
 import gspread
-from gspread.utils import rowcol_to_a1
+from gspread.exceptions import APIError
+from gspread.utils import ValueRenderOption, rowcol_to_a1
 from oauth2client.service_account import ServiceAccountCredentials
 from datetime import datetime
 import pandas as pd
 from apps.cli.legacy.core.utils import cleanup_jd_cache
-from apps.cli.legacy.core.config import get_sheet_config
+from apps.cli.legacy.core.config import get_sheet_config, get_worksheet_tab_date
+from apps.cli.legacy.core import sheet_outbox
 from apps.cli.legacy.core.learning_schemas import (
     SHEET_COL_ACTION_LINK,
     SHEET_COL_BASE_LLM_SCORE,
@@ -27,6 +30,67 @@ from apps.cli.legacy.core.learning_schemas import (
 
 # Local JD cache path (JDs used for evaluation only; not stored in Sheets)
 DEFAULT_JD_CACHE_PATH = os.path.join(os.getcwd(), "config", "jd_cache.json")
+
+# When append_rows (or pre-append reads) fail, jobs are written here for offline replay.
+DEFAULT_SHEET_APPEND_FALLBACK_DIR = os.path.join(os.getcwd(), "data", "sheet_append_fallback")
+
+# Keys to persist for replay via scripts/tools/replay_sheet_fallback_queue.py
+_FALLBACK_JOB_KEYS = (
+    "url",
+    "title",
+    "company",
+    "location",
+    "source",
+    "site",
+    "description",
+    "jd_verified",
+    "jd_fetch_method",
+    "jd_fetch_reason",
+    "tags",
+)
+
+# Dedicated tab in the same spreadsheet: paste job URLs for JD fetch + resume tailoring (optional workflow).
+DEFAULT_MANUAL_JD_TAILOR_TAB = "Manual_JD_Tailor"
+
+# Pull http(s) or www.… from a cell; Sheets hyperlinks sometimes store only visible title in FORMATTED_VALUE.
+_MANUAL_TAILOR_URL_RE = re.compile(r"(https?://[^\s\)\]>'\"]+|www\.[^\s\)\]>'\"]+)", re.I)
+
+
+def _as_list_of_lists(grid: object) -> list[list]:
+    if grid is None:
+        return []
+    if isinstance(grid, list):
+        return grid
+    vals = getattr(grid, "values", None)
+    if isinstance(vals, list):
+        return vals
+    return []
+
+
+def _url_from_manual_tailor_cell(raw: str) -> str:
+    s = (raw or "").strip()
+    if not s:
+        return ""
+    m = _MANUAL_TAILOR_URL_RE.search(s)
+    if not m:
+        return ""
+    u = m.group(1).rstrip(").,;\\]}'\"")
+    if u.lower().startswith("www."):
+        u = "https://" + u[4:]
+    return u
+
+
+def _first_job_url_in_row(cells: list[str]) -> str:
+    for c in cells:
+        u = _url_from_manual_tailor_cell(str(c))
+        if u:
+            return u
+    return ""
+
+
+def _manual_tailor_first_row_is_header(first_row: list) -> bool:
+    cells = [str(c).strip().lower() for c in first_row[:12]]
+    return "job link" in cells
 
 # New daily tabs must fit evaluation + learning columns (through "Action Link" ≈ column 21+).
 DEFAULT_NEW_WORKSHEET_ROWS = 100
@@ -48,6 +112,10 @@ SORT_PRIORITY_MAP = {
     "📉 low priority": 4,
     "❌ no": 5,
 }
+
+
+class SheetsReadError(RuntimeError):
+    """Raised when Google Sheets reads fail after retries (e.g. persistent 429 quota)."""
 
 
 def normalize_job_url(url):
@@ -109,6 +177,10 @@ class GoogleSheetsClient:
         self.client = None
         self.sheet = None
         self._cached_existing_urls = None
+        self._cached_applied_urls = None
+        self._cached_evaluated_or_applied_urls = None
+        self._worksheet_header_row_cache = {}
+        self._last_sheets_call_end_monotonic = 0.0
 
         cfg_sheet = get_sheet_config()
         raw = spreadsheet_id
@@ -123,8 +195,295 @@ class GoogleSheetsClient:
         if removed > 0 or migrated > 0:
             print(f"🧹 JD Cache Janitor: Removed {removed} old entries, migrated {migrated} to new format.")
 
+    @staticmethod
+    def invalidate_sheet_url_caches(client: "GoogleSheetsClient") -> None:
+        """Clear cached URL sets so the next read hits Google Sheets."""
+        client._cached_existing_urls = None
+        client._cached_applied_urls = None
+        client._cached_evaluated_or_applied_urls = None
+        client._worksheet_header_row_cache = {}
+
+    def _manual_jd_tailor_tab_title(self) -> str:
+        cfg = get_sheet_config()
+        return str(cfg.get("manual_jd_tailor_tab") or DEFAULT_MANUAL_JD_TAILOR_TAB).strip() or DEFAULT_MANUAL_JD_TAILOR_TAB
+
+    def ensure_manual_jd_tailor_worksheet(self):
+        """
+        Create (if missing) a simple tab for pasting job URLs for JD ingestion / resume tailoring.
+        Same spreadsheet as pipeline; does not replace daily sourcing tabs.
+        """
+        if not self.client:
+            self.connect()
+        spreadsheet = self._open_workbook()
+        title = self._manual_jd_tailor_tab_title()
+        try:
+            ws = spreadsheet.worksheet(title)
+            self._ensure_recommended_resume_column(ws)
+            return ws
+        except gspread.exceptions.WorksheetNotFound:
+            ws = spreadsheet.add_worksheet(
+                title=title,
+                rows=DEFAULT_NEW_WORKSHEET_ROWS,
+                cols=8,
+            )
+            headers = [
+                "Status",
+                "Job Link",
+                "Recommended Resume",
+                "Notes",
+                "Last processed",
+                "Tailored YAML",
+                "Error",
+            ]
+            ws.append_row(headers)
+            last = rowcol_to_a1(1, len(headers))
+            ws.format(f"A1:{last}", {"textFormat": {"bold": True}})
+            print(
+                f"Created tab '{title}' for manual JD URLs: "
+                "B = Job Link; C = Suggested resume variant (optional); "
+                "or paste URL-only in column A."
+            )
+            return ws
+
+    def _ensure_recommended_resume_column(self, ws) -> None:
+        """
+        Older Manual_JD_Tailor tabs had no Recommended Resume column.
+        Appends a new column at the end with header 'Recommended Resume' when missing.
+        """
+        row1 = self._with_retries(lambda: ws.row_values(1), op_name="manual_tailor_header_row") or []
+        labels = [str(x).strip().lower() for x in row1 if str(x).strip()]
+        if "recommended resume" in labels:
+            return
+        if not labels:
+            return
+        # Append after the last header cell (e.g. old layout ends at F Error → use column G)
+        last_used = len(row1)
+        new_col = last_used + 1
+        if new_col > ws.col_count:
+            self._with_retries(
+                lambda: ws.resize(rows=max(ws.row_count, 100), cols=new_col),
+                op_name="manual_tailor_resize_cols",
+            )
+        self._with_retries(
+            lambda: ws.update_cell(1, new_col, "Recommended Resume"),
+            op_name="manual_tailor_add_header",
+        )
+        a1 = rowcol_to_a1(1, new_col)
+        self._with_retries(
+            lambda: ws.format(a1, {"textFormat": {"bold": True}}),
+            op_name="manual_tailor_format_header",
+        )
+        print(
+            "[Manual_JD_Tailor] Added column 'Recommended Resume' at the end of row 1. "
+            "Enter your suggested variant there (e.g. TPM vs PO from your other tool). "
+            "Job links stay in column B."
+        )
+
+    def read_manual_jd_tailor_urls(self, limit: int = 500) -> list[str]:
+        """
+        Read job-listing URLs from the Manual JD Tailor tab.
+
+        Scans each non-empty row for an http(s) or www. URL in *any* cell (regex).
+        Tries UNFORMATTED then FORMATTED values so inserted hyperlinks and plain text
+        both work. Skips a header row when the first row contains a 'Job Link' column.
+        """
+        if not self.client:
+            self.connect()
+        try:
+            ws = self._open_workbook().worksheet(self._manual_jd_tailor_tab_title())
+        except gspread.exceptions.WorksheetNotFound:
+            return []
+
+        def _fetch_grid(vro: ValueRenderOption | None) -> list[list]:
+            if vro is None:
+                raw = self._with_retries(lambda: ws.get_all_values(), op_name="manual_tailor_get_all_values")
+            else:
+                raw = self._with_retries(
+                    lambda v=vro: ws.get_all_values(value_render_option=v),
+                    op_name="manual_tailor_get_all_values",
+                )
+            return _as_list_of_lists(raw)
+
+        max_scanned = 0
+        for vro in (ValueRenderOption.unformatted, ValueRenderOption.formatted, None):
+            values = _fetch_grid(vro)
+            jobs, scanned = self._parse_manual_tailor_grid_jobs(values, limit)
+            max_scanned = max(max_scanned, scanned)
+            if jobs:
+                return [j["url"] for j in jobs]
+
+        if max_scanned > 0:
+            print(
+                "[Manual_JD_Tailor] Found rows but no recognizable URLs. "
+                "Paste full job posting links (https://... or www....), not only the job title.",
+                file=sys.stderr,
+            )
+        return []
+
+    def read_manual_jd_tailor_jobs(self, limit: int = 500) -> list[dict[str, str]]:
+        """
+        Rows from Manual_JD_Tailor: {"url", "recommended_resume"}.
+        Optional text under header 'Recommended Resume' (any column); supply from another tool if you want.
+        """
+        if not self.client:
+            self.connect()
+        try:
+            ws = self._open_workbook().worksheet(self._manual_jd_tailor_tab_title())
+        except gspread.exceptions.WorksheetNotFound:
+            return []
+
+        def _fetch_grid(vro: ValueRenderOption | None) -> list[list]:
+            if vro is None:
+                raw = self._with_retries(lambda: ws.get_all_values(), op_name="manual_tailor_get_all_values")
+            else:
+                raw = self._with_retries(
+                    lambda v=vro: ws.get_all_values(value_render_option=v),
+                    op_name="manual_tailor_get_all_values",
+                )
+            return _as_list_of_lists(raw)
+
+        for vro in (ValueRenderOption.unformatted, ValueRenderOption.formatted, None):
+            values = _fetch_grid(vro)
+            jobs, _ = self._parse_manual_tailor_grid_jobs(values, limit)
+            if jobs:
+                return jobs
+        return []
+
+    def update_manual_jd_tailor_result(
+        self,
+        *,
+        url: str,
+        status: str,
+        tailored_yaml: str = "",
+        error: str = "",
+        last_processed: str | None = None,
+        validation_verdict: str = "",
+        validation_reason: str = "",
+        tailored_score: str = "",
+        generic_score: str = "",
+        use_resume: str = "",
+    ) -> bool:
+        """
+        Update one Manual_JD_Tailor row by URL with status, timestamps, output path, and error text.
+        Returns True if a matching URL row was found and updated.
+        """
+        if not self.client:
+            self.connect()
+        ws = self._open_workbook().worksheet(self._manual_jd_tailor_tab_title())
+        headers = [h.strip() for h in (self._with_retries(lambda: ws.row_values(1), op_name="manual_tailor_headers") or [])]
+        if not headers:
+            return False
+
+        status_col = self._get_or_create_col_index(ws, "Status", headers)
+        link_col = self._get_or_create_col_index(ws, "Job Link", headers)
+        last_col = self._get_or_create_col_index(ws, "Last processed", headers)
+        yaml_col = self._get_or_create_col_index(ws, "Tailored YAML", headers)
+        err_col = self._get_or_create_col_index(ws, "Error", headers)
+        vv_col = self._get_or_create_col_index(ws, "Validation Verdict", headers)
+        vr_col = self._get_or_create_col_index(ws, "Validation Reason", headers)
+        ts_col = self._get_or_create_col_index(ws, "Tailored Score", headers)
+        gs_col = self._get_or_create_col_index(ws, "Generic Score", headers)
+        ur_col = self._get_or_create_col_index(ws, "Use Resume", headers)
+
+        values = self._with_retries(lambda: ws.get_all_values(), op_name="manual_tailor_get_all_values") or []
+        if len(values) <= 1:
+            return False
+
+        target = normalize_job_url(url)
+        if not target:
+            return False
+
+        row_idx = -1
+        for i, row in enumerate(values[1:], start=2):
+            row_s = [str(c) for c in row]
+            row_url = self._url_for_manual_data_row(row_s, link_col - 1)
+            if normalize_job_url(row_url) == target:
+                row_idx = i
+                break
+
+        if row_idx < 0:
+            return False
+
+        now = last_processed or datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        cells = [
+            gspread.Cell(row_idx, status_col, status or ""),
+            gspread.Cell(row_idx, last_col, now),
+            gspread.Cell(row_idx, yaml_col, tailored_yaml or ""),
+            gspread.Cell(row_idx, err_col, error or ""),
+            gspread.Cell(row_idx, vv_col, validation_verdict or ""),
+            gspread.Cell(row_idx, vr_col, validation_reason or ""),
+            gspread.Cell(row_idx, ts_col, tailored_score or ""),
+            gspread.Cell(row_idx, gs_col, generic_score or ""),
+            gspread.Cell(row_idx, ur_col, use_resume or ""),
+        ]
+        self._with_retries(lambda: ws.update_cells(cells), op_name="manual_tailor_update_result")
+        return True
+
+    def _manual_tailor_column_indices(self, header_row: list) -> tuple[int, int]:
+        h = [str(c).strip().lower() for c in header_row]
+
+        def find(*names: str) -> int:
+            for n in names:
+                key = n.lower()
+                try:
+                    return h.index(key)
+                except ValueError:
+                    continue
+            return -1
+
+        jl = find("job link")
+        rec = find("recommended resume", "resume variant", "eval recommended resume")
+        return jl, rec
+
+    def _url_for_manual_data_row(self, row: list[str], job_link_idx: int) -> str:
+        if job_link_idx >= 0 and job_link_idx < len(row):
+            u = _url_from_manual_tailor_cell(str(row[job_link_idx]))
+            if u:
+                return u
+        return _first_job_url_in_row([str(c) for c in row])
+
+    def _parse_manual_tailor_grid_jobs(
+        self, values: list[list], limit: int
+    ) -> tuple[list[dict[str, str]], int]:
+        """Return (jobs with url + recommended_resume, non-empty row count scanned)."""
+        if not values:
+            return [], 0
+        header = _manual_tailor_first_row_is_header(values[0])
+        if header and len(values) < 2:
+            return [], 0
+        hdr = values[0]
+        data_rows = values[1:] if header else values
+        job_link_idx, rec_idx = (-1, -1)
+        if header:
+            job_link_idx, rec_idx = self._manual_tailor_column_indices(hdr)
+
+        out: list[dict[str, str]] = []
+        seen: set[str] = set()
+        scanned_non_empty = 0
+        for row in data_rows:
+            if len(out) >= limit:
+                break
+            if not any(str(c).strip() for c in row):
+                continue
+            scanned_non_empty += 1
+            row_s = [str(c) for c in row]
+            link = self._url_for_manual_data_row(row_s, job_link_idx)
+            if not link:
+                continue
+            n = normalize_job_url(link)
+            if not n or n in seen:
+                continue
+            seen.add(n)
+            rec_cell = ""
+            if rec_idx >= 0 and rec_idx < len(row_s):
+                rec_cell = row_s[rec_idx].strip()
+            out.append({"url": link, "recommended_resume": rec_cell})
+        return out, scanned_non_empty
+
     def _open_workbook(self):
         """Open the configured spreadsheet by ID or title. Does not create a new file."""
+        if self.client is None:
+            raise RuntimeError("GoogleSheetsClient.connect() required before _open_workbook()")
         if self.spreadsheet_id:
             return self.client.open_by_key(self.spreadsheet_id)
         return self.client.open(self.sheet_name)
@@ -160,11 +519,13 @@ class GoogleSheetsClient:
         scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
         
         try:
-            creds = ServiceAccountCredentials.from_json_keyfile_name(self.credentials_path, scope)
-            self.client = gspread.authorize(creds)
+            creds = ServiceAccountCredentials.from_json_keyfile_name(
+                self.credentials_path, scope  # type: ignore[arg-type]
+            )
+            self.client = gspread.authorize(creds)  # type: ignore[arg-type]
             
-            # Determine today's date for the tab name
-            today_str = datetime.now().strftime("%Y-%m-%d")
+            # Daily pipeline tab (YYYY-MM-DD) from config / SHEET_TAB_DATE
+            tab_str = get_worksheet_tab_date()
             
             try:
                 spreadsheet = self._open_workbook()
@@ -178,16 +539,16 @@ class GoogleSheetsClient:
                 spreadsheet = self.client.create(self.sheet_name)
             
             try:
-                # Try to get the worksheet for today
-                self.sheet = spreadsheet.worksheet(today_str)
+                # Main worksheet for sourcing / evaluation
+                self.sheet = spreadsheet.worksheet(tab_str)
                 doc_label = getattr(spreadsheet, "title", None) or self.sheet_name
-                print(f"Connected to spreadsheet '{doc_label}', tab: {today_str}")
+                print(f"Connected to spreadsheet '{doc_label}', tab: {tab_str}")
             except gspread.exceptions.WorksheetNotFound:
-                print(f"Tab for '{today_str}' not found. Creating it...")
+                print(f"Tab for '{tab_str}' not found. Creating it...")
                 self.sheet = spreadsheet.add_worksheet(
-                    title=today_str,
-                    rows=str(DEFAULT_NEW_WORKSHEET_ROWS),
-                    cols=str(DEFAULT_NEW_WORKSHEET_COLS),
+                    title=tab_str,
+                    rows=DEFAULT_NEW_WORKSHEET_ROWS,
+                    cols=DEFAULT_NEW_WORKSHEET_COLS,
                 )
                 
                 # Core evaluation columns
@@ -242,6 +603,8 @@ class GoogleSheetsClient:
         """Fetches all jobs from the sheet."""
         if not self.sheet:
             self.connect()
+        if self.sheet is None:
+            raise RuntimeError("Worksheet unavailable after connect()")
         return self.sheet.get_all_records()
 
     def get_existing_urls(self, use_cache=True):
@@ -268,10 +631,12 @@ class GoogleSheetsClient:
         self._cached_existing_urls = existing_urls
         return existing_urls
 
-    def get_applied_urls(self):
+    def get_applied_urls(self, use_cache: bool = True):
         """Returns a set of canonical Job Links where user marked Applied? (Y/N) = Y. So we never re-add or re-evaluate those."""
         if not self.client:
             self.connect()
+        if use_cache and self._cached_applied_urls is not None:
+            return self._cached_applied_urls
         applied = set()
         try:
             spreadsheet = self._open_workbook()
@@ -295,15 +660,18 @@ class GoogleSheetsClient:
                                 applied.add(normalize_job_url(link))
         except Exception as e:
             print(f"Error fetching applied URLs: {e}")
+        self._cached_applied_urls = applied
         return applied
 
-    def get_already_evaluated_or_applied_canonical_urls(self):
+    def get_already_evaluated_or_applied_canonical_urls(self, use_cache: bool = True):
         """
         Canonical URLs of jobs that are already EVALUATED or marked Applied=Y in any tab.
         Use in evaluator to skip re-evaluating so the agent and user don't process the same job again.
         """
         if not self.client:
             self.connect()
+        if use_cache and self._cached_evaluated_or_applied_urls is not None:
+            return self._cached_evaluated_or_applied_urls
         seen = set()
         try:
             spreadsheet = self._open_workbook()
@@ -326,6 +694,7 @@ class GoogleSheetsClient:
                         seen.add(normalize_job_url(row[url_idx]))
         except Exception as e:
             print(f"Error fetching already-seen URLs: {e}")
+        self._cached_evaluated_or_applied_urls = seen
         return seen
 
     def _get_or_create_col_index(self, worksheet, col_name, headers=None):
@@ -344,70 +713,148 @@ class GoogleSheetsClient:
             worksheet.format(f'{gspread.utils.rowcol_to_a1(1, col_idx)}', {'textFormat': {'bold': True}})
             return col_idx
 
+    def _job_dict_for_fallback(self, job: dict) -> dict:
+        out: dict = {}
+        for k in _FALLBACK_JOB_KEYS:
+            if k in job:
+                out[k] = job[k]
+        return out
+
+    def _persist_append_fallback(self, tab_date: str, jobs: list[dict], reason: str) -> str | None:
+        """Write failed-append jobs to disk for scripts/tools/replay_sheet_fallback_queue.py."""
+        if os.environ.get("SHEET_APPEND_FALLBACK_JSON", "1").strip().lower() in ("0", "false", "no"):
+            return None
+        base = os.environ.get("SHEET_APPEND_FALLBACK_DIR", "").strip() or DEFAULT_SHEET_APPEND_FALLBACK_DIR
+        try:
+            os.makedirs(base, exist_ok=True)
+            path = os.path.join(
+                base,
+                f"failed_append_{tab_date.replace('-', '')}_{datetime.now().strftime('%H%M%S')}.json",
+            )
+            payload = {"tab_date": tab_date, "reason": reason[:2000], "jobs": jobs}
+            with open(path, "w", encoding="utf-8") as f:
+                json.dump(payload, f, ensure_ascii=False, indent=2)
+            print(f"[Sheets fallback] wrote {path}")
+            return path
+        except OSError as e:
+            print(f"[Sheets fallback] Could not write: {e}")
+            return None
+
     def add_jobs(self, jobs_list):
         """
-        Adds new jobs. Skips duplicates and includes AI-sourced tags if available.
+        Adds new jobs. Skips duplicates; updates jd_cache before append so JD survives append failures.
+        On Sheets errors after building rows, persists fallback JSON and enqueues SQLite outbox when enabled.
         """
-        if not self.sheet:
-            self.connect()
-        
-        existing = self.get_existing_urls()
-        applied = self.get_applied_urls()
-        seen = existing | applied
-        
-        # Tags are no longer stored in Sheets; they are parsed only
-        # Sourcing Tags column is redundant since we have Reasoning
-        
-        new_rows = []
-        jd_meta_updates = []
-        jd_cache_updates = {}
-        for job in jobs_list:
-            canonical = normalize_job_url(job.get("url") or "")
-            if not canonical or canonical in seen:
-                continue
-            
-            desc = (job.get("description") or "").strip()
-            jd_verified = bool(job.get("jd_verified", False))
-            jd_fetch_method = str(job.get("jd_fetch_method") or "")
-            jd_fetch_reason = str(job.get("jd_fetch_reason") or "")
+        tab_date = get_worksheet_tab_date()
+        pending_jobs: list[dict] = []
+        try:
+            if not self.sheet:
+                self.connect()
 
-            if jd_verified and desc:
-                jd_cache_updates[canonical] = {
-                    "jd": desc[:50000],
-                    "timestamp": datetime.now().strftime("%Y-%m-%d")
-                }
-            
-            # Basic row structure (Fixed A-G)
-            row = [""] * 17 # includes JD meta cols (O-Q)
-            row[0] = "NEW" if jd_verified else "NO_JD"
-            row[1] = job.get("title", "")
-            row[2] = job.get("company", "")
-            row[3] = job.get("location", "")
-            row[4] = job.get("url", "")
-            row[5] = job.get("source", "Unknown")
-            row[6] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            row[14] = "Y" if jd_verified else "N"
-            row[15] = jd_fetch_method
-            row[16] = jd_fetch_reason
-            
-            new_rows.append(row)
-            jd_meta_updates.append((canonical, jd_verified, jd_fetch_method, jd_fetch_reason))
-            seen.add(canonical)
-            
-        if new_rows:
-            self._with_retries(lambda: self.sheet.append_rows(new_rows), op_name="append_rows")
-            self._cached_existing_urls = seen
+            existing = self.get_existing_urls() or set()
+            applied = self.get_applied_urls() or set()
+            seen = set(existing) | set(applied)
+
+            new_rows = []
+            jd_cache_updates = {}
+            for job in jobs_list or []:
+                canonical = normalize_job_url(job.get("url") or "")
+                if not canonical or canonical in seen:
+                    continue
+
+                desc = (job.get("description") or "").strip()
+                jd_verified = bool(job.get("jd_verified", False))
+                jd_fetch_method = str(job.get("jd_fetch_method") or "")
+                jd_fetch_reason = str(job.get("jd_fetch_reason") or "")
+
+                if jd_verified and desc:
+                    jd_cache_updates[canonical] = {
+                        "jd": desc[:50000],
+                        "timestamp": datetime.now().strftime("%Y-%m-%d"),
+                    }
+
+                row = [""] * 17
+                row[0] = "NEW" if jd_verified else "NO_JD"
+                row[1] = job.get("title", "")
+                row[2] = job.get("company", "")
+                row[3] = job.get("location", "")
+                row[4] = job.get("url", "")
+                row[5] = job.get("source", "Unknown")
+                row[6] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                row[14] = "Y" if jd_verified else "N"
+                row[15] = jd_fetch_method
+                row[16] = jd_fetch_reason
+
+                new_rows.append(row)
+                pending_jobs.append(self._job_dict_for_fallback(job))
+                seen.add(canonical)
+
+            if not new_rows:
+                if jobs_list:
+                    print("No new jobs to add (all duplicates or empty).")
+                else:
+                    print("No new jobs to add.")
+                return
+
+            if not self.sheet:
+                self.connect()
+            worksheet = self.sheet
+            if worksheet is None:
+                raise RuntimeError("Worksheet unavailable; cannot append rows.")
             if jd_cache_updates:
                 cache = self._load_jd_cache()
                 cache.update(jd_cache_updates)
                 self._save_jd_cache(cache)
-            print(f"Added {len(new_rows)} new jobs with AI Tags.")
-        else:
-            print("No new jobs to add.")
+
+            to_save = pending_jobs
+            self._with_retries(lambda: worksheet.append_rows(new_rows), op_name="append_rows")
+            self._cached_existing_urls = seen
+            print(f"Added {len(new_rows)} new jobs.")
+        except Exception as e:
+            to_save = pending_jobs if pending_jobs else [self._job_dict_for_fallback(j) for j in (jobs_list or [])]
+            if to_save:
+                self._persist_append_fallback(tab_date, to_save, str(e))
+                sheet_outbox.enqueue_outbox("add_jobs", tab_date, {"jobs": to_save}, str(e))
+            raise
+
+    def count_evaluated_jobs_min_score(self, min_score: float = 80.0) -> int:
+        """Count rows on the active daily tab where Status=EVALUATED and Apply Score >= min_score."""
+        if not self.client:
+            self.connect()
+        tab_date_str = get_worksheet_tab_date()
+
+        def _read_records():
+            worksheet = self._open_workbook().worksheet(tab_date_str)
+            return worksheet.get_all_records()
+
+        try:
+            records = self._with_retries(_read_records, op_name="count_evaluated_records")
+        except Exception as e:
+            raise SheetsReadError(str(e)) from e
+
+        n = 0
+        for r in records or []:
+            if str(r.get("Status", "")).strip().upper() != "EVALUATED":
+                continue
+            try:
+                s = float(str(r.get("Apply Score", "0") or "0").strip())
+            except ValueError:
+                s = 0.0
+            if s >= float(min_score):
+                n += 1
+        return n
 
     def get_new_jobs(self, limit=100):
         """Fetches up to `limit` jobs that have the 'NEW' status from today's tab."""
-        return self._get_jobs_by_criteria({'Status': 'NEW'}, limit)
+        return self._get_jobs_by_criteria({"Status": "NEW"}, limit)
+
+    def get_needs_review_jobs(self, limit=100):
+        """Jobs with Status NEEDS_REVIEW on the active daily tab (parse/LLM recovery)."""
+        return self._get_jobs_by_criteria({"Status": "NEEDS_REVIEW"}, limit)
+
+    def get_llm_failed_jobs(self, limit=100):
+        """Jobs with Status LLM_FAILED on the active daily tab."""
+        return self._get_jobs_by_criteria({"Status": "LLM_FAILED"}, limit)
 
     def get_maybe_jobs(self, limit=100):
         """Fetches up to `limit` jobs that have the 'Maybe' status from ALL tabs."""
@@ -447,34 +894,35 @@ class GoogleSheetsClient:
             return [], None
 
     def _get_jobs_by_criteria(self, criteria, limit=100):
-        """Internal helper to fetch jobs based on column-value criteria."""
+        """Internal helper to fetch jobs based on column-value criteria (active daily tab)."""
         if not self.client:
             self.connect()
-            
-        today_str = datetime.now().strftime("%Y-%m-%d")
+
+        tab_str = get_worksheet_tab_date()
         try:
-            worksheet = self._open_workbook().worksheet(today_str)
-            records = worksheet.get_all_records()
-            
+            worksheet = self._open_workbook().worksheet(tab_str)
+            records = self._with_retries(
+                lambda: worksheet.get_all_records(),
+                op_name="get_all_records",
+            ) or []
+
             filtered_jobs = []
             for i, record in enumerate(records):
-                # Check all criteria
                 match = True
                 for key, val in criteria.items():
-                    # Handle string-based criteria more flexibly
-                    actual = str(record.get(key, '')).strip()
+                    actual = str(record.get(key, "")).strip()
                     target = str(val).strip()
-                    
+
                     if key == "Match Type":
-                        # Match Type might have asterisks from LLM formatting
-                        actual = actual.replace('*', '')
-                        
+                        actual = actual.replace("*", "")
+
                     if actual.lower() != target.lower():
                         match = False
                         break
-                
+
                 if match:
-                    record['_row_index'] = i + 2
+                    record["_row_index"] = i + 2
+                    record["_worksheet"] = worksheet
                     filtered_jobs.append(record)
                     if len(filtered_jobs) >= limit:
                         break
@@ -657,21 +1105,23 @@ class GoogleSheetsClient:
                     final_reason = f"[{loc_ver}] {reasoning}"
 
             cells_to_update.append(gspread.Cell(row=row_index, col=1, value="EVALUATED"))
-            cells_to_update.append(gspread.Cell(row=row_index, col=match_col, value=match_type))
-            cells_to_update.append(gspread.Cell(row=row_index, col=score_col, value=score))
+            cells_to_update.append(gspread.Cell(row=row_index, col=match_col, value=str(match_type)))
+            cells_to_update.append(gspread.Cell(row=row_index, col=score_col, value=str(score)))
             cells_to_update.append(gspread.Cell(row=row_index, col=resume_col, value=recommended))
             cells_to_update.append(gspread.Cell(row=row_index, col=h1b_col, value=h1b))
             cells_to_update.append(gspread.Cell(row=row_index, col=reason_col, value=final_reason))
             cells_to_update.append(gspread.Cell(row=row_index, col=skills_col, value=missing))
-            cells_to_update.append(gspread.Cell(row=row_index, col=cal_col, value=u["calibration_delta"]))
+            cells_to_update.append(
+                gspread.Cell(row=row_index, col=cal_col, value=str(u["calibration_delta"]))
+            )
             cells_to_update.append(gspread.Cell(row=row_index, col=audit_col, value=u["decision_audit_json"]))
             cells_to_update.append(gspread.Cell(row=row_index, col=ev_col, value=u.get("evidence_json") or ""))
-            base_val = u["base_llm_score"]
-            if base_val is None or base_val == "":
-                base_val = ""
+            base_raw = u["base_llm_score"]
+            if base_raw is None or base_raw == "":
+                base_out = ""
             else:
-                base_val = int(base_val)
-            cells_to_update.append(gspread.Cell(row=row_index, col=base_col, value=base_val))
+                base_out = str(int(base_raw))
+            cells_to_update.append(gspread.Cell(row=row_index, col=base_col, value=base_out))
             cells_to_update.append(gspread.Cell(row=row_index, col=fb_col, value=u.get("feedback") or ""))
             cells_to_update.append(gspread.Cell(row=row_index, col=fn_col, value=u.get("feedback_note") or ""))
             cells_to_update.append(gspread.Cell(row=row_index, col=dig_col, value=u.get("digest_status") or ""))
@@ -703,7 +1153,8 @@ class GoogleSheetsClient:
                     rj_score_int = ""
             else:
                 rj_score_int = ""
-            cells_to_update.append(gspread.Cell(row=row_index, col=rj_score_col, value=rj_score_int))
+            rj_out = "" if rj_score_int == "" else str(rj_score_int)
+            cells_to_update.append(gspread.Cell(row=row_index, col=rj_score_col, value=rj_out))
             cells_to_update.append(gspread.Cell(row=row_index, col=rj_verdict_col, value=u.get("role_judge_verdict") or ""))
             cells_to_update.append(gspread.Cell(row=row_index, col=rj_notes_col, value=u.get("role_judge_notes") or ""))
 
@@ -715,7 +1166,8 @@ class GoogleSheetsClient:
                     ats_pct_int = ""
             else:
                 ats_pct_int = ""
-            cells_to_update.append(gspread.Cell(row=row_index, col=ats_match_col, value=ats_pct_int))
+            ats_out = "" if ats_pct_int == "" else str(ats_pct_int)
+            cells_to_update.append(gspread.Cell(row=row_index, col=ats_match_col, value=ats_out))
             cells_to_update.append(gspread.Cell(row=row_index, col=ats_gaps_col, value=u.get("ats_critical_gaps") or ""))
 
         if cells_to_update:
@@ -765,9 +1217,9 @@ class GoogleSheetsClient:
         if not self.client:
             self.connect()
             
-        today_str = datetime.now().strftime("%Y-%m-%d")
+        tab_str = get_worksheet_tab_date()
         try:
-            worksheet = self._open_workbook().worksheet(today_str)
+            worksheet = self._open_workbook().worksheet(tab_str)
             values = worksheet.get_all_values()
             
             if len(values) <= 1:
@@ -827,15 +1279,47 @@ class GoogleSheetsClient:
             op_name="update_resume_for_row",
         )
 
-    def _with_retries(self, fn, op_name="operation", retries=3, base_sleep=1.5):
-        """Retry wrapper for transient Sheets API failures."""
+    def _with_retries(self, fn, op_name="operation", retries=None, base_sleep=None, **kwargs):
+        """
+        Retry wrapper for transient Sheets API failures.
+        Env: SHEETS_RETRY_MAX, SHEETS_BASE_SLEEP, SHEETS_MIN_REQUEST_INTERVAL_SEC (pacing between calls).
+        Raises SheetsReadError on persistent quota (429) after retries.
+        """
+        if kwargs:
+            pass  # forward-compatibility for call sites
+        if retries is None:
+            retries = int(os.environ.get("SHEETS_RETRY_MAX", "3") or "3")
+        if base_sleep is None:
+            base_sleep = float(os.environ.get("SHEETS_BASE_SLEEP", "1.5") or "1.5")
+        min_interval = float(os.environ.get("SHEETS_MIN_REQUEST_INTERVAL_SEC", "0") or "0")
+
         last_error = None
-        for attempt in range(1, retries + 1):
+        for attempt in range(1, max(1, retries) + 1):
+            if min_interval > 0:
+                last_end = getattr(self, "_last_sheets_call_end_monotonic", 0.0) or 0.0
+                if last_end > 0:
+                    elapsed = time.monotonic() - last_end
+                    if elapsed < min_interval:
+                        time.sleep(min_interval - elapsed)
             try:
-                return fn()
+                out = fn()
+                self._last_sheets_call_end_monotonic = time.monotonic()
+                return out
             except Exception as e:
                 last_error = e
-                if attempt == retries:
+                is_quota = False
+                if isinstance(e, APIError):
+                    try:
+                        if getattr(e.response, "status_code", None) == 429:
+                            is_quota = True
+                    except Exception:
+                        pass
+                low = str(e).lower()
+                if "429" in low or "quota" in low:
+                    is_quota = True
+                if attempt >= retries:
+                    if is_quota:
+                        raise SheetsReadError(str(e)) from e
                     raise
                 sleep_s = base_sleep * attempt
                 print(f"Retrying {op_name} ({attempt}/{retries}) after error: {e}")

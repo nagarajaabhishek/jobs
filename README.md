@@ -1,6 +1,6 @@
 # Job Automation Pipeline
 
-An automated system for sourcing, filtering, and evaluating job postings using **Gemini 1.5 Pro** and **Gemini 2.5 Flash**.
+An automated system for sourcing, filtering, and evaluating job postings using **`LLMRouter`**: default **OpenRouter** (configurable model slugs) with optional **Gemini** / **OpenAI** providers for rollback.
 
 ## Master Architecture
 ```mermaid
@@ -20,9 +20,9 @@ graph TD
         L[JD Cache: Local JSON Store] --> G
     end
 
-    subgraph Logic ["3. Evaluation Layer (Gemini)"]
+    subgraph Logic ["3. Evaluation Layer (LLM)"]
         G[Evaluation Agent] --> M[LLM Router]
-        M -- Primary --> N[Gemini API]
+        M -- Primary --> N[OpenRouter / Gemini / OpenAI]
         N --> Q[Match Scoring 2.0 Rubric]
         J[Sponsorship Agent] --> G
     end
@@ -39,9 +39,9 @@ graph TD
 
 ## Features
 - **Target-Driven Interleaved Pipeline**: Restructured to source and evaluate in 10/10 batches, providing immediate results and exiting once 50 "Must Apply" matches are found.
-- **Dual-Model Strategy**:
-    - **Sourcing/Sniffing**: Powered by `gemini-2.5-flash-lite` for ultra-low-cost relevance checks.
-    - **Deep Matching**: Powered by `gemini-2.0-flash` for high-fidelity evaluation and scoring.
+- **Dual-Model Strategy** (see `evaluation.*` in `config/pipeline.yaml`):
+    - **Sourcing/Sniffing**: `sourcing_model` (OpenRouter slug when `provider: openrouter`).
+    - **Deep Matching**: `openrouter_model` / `gemini_model` / `openai_model` depending on provider.
 
 - **AI-Enhanced Sourcing**: 
     - **Smart Sniffing**: Drops irrelevant roles before they hit the sheet.
@@ -54,6 +54,12 @@ graph TD
     - **Daily digest**: After a run, digest files are written under `data/digests/` (see `digest.*` in `config/pipeline.yaml`). `cycle.run_digest_after_pipeline` runs digest generation and can mark `Digest Status` / `Action Link` on the sheet.
 
 - **Automation guardrails**: `cycle.automation_hooks_enabled` is reserved for future hooks; it does **not** auto-apply to jobs—manual approval remains required.
+
+- **Manual JD Tailor workflow (sheet-first)**:
+    - Paste URLs into `Manual_JD_Tailor` and optionally set `Recommended Resume`.
+    - Run one command (`--from-tailor-tab`) to fetch JD, tailor, run QA, generate `.tex/.pdf`, and write run status back to the sheet.
+    - Output file naming now uses readable structured names (e.g., `AN_BA_<Position>_<Company>_Resume.pdf`) under `Resume_Building/Tailored/<Profile>/<JD_STEM>/`.
+    - Optional post-tailor variant validation compares tailored vs generic-recommended YAML and writes winner columns to the sheet.
 
 ## Project Structure
 - `apps/cli/run_pipeline.py`: Main daily pipeline entrypoint.
@@ -72,8 +78,30 @@ cd /path/to/Job_Automation && python3 apps/cli/run_pipeline.py
 ```
 For detailed agent instructions, see [.agent/workflows/job_pipeline.md](.agent/workflows/job_pipeline.md).
 
+### Manual JD tailoring (recommended daily command)
+```bash
+cd /path/to/Job_Automation && python3 scripts/tools/tailor_from_urls.py --from-tailor-tab
+```
+
+This command now auto-handles:
+- ensuring `Manual_JD_Tailor` exists (and required columns are present)
+- reading URL + `Recommended Resume`
+- tailoring + QA loop + LaTeX/PDF generation
+- sheet updates per row: `Status`, `Last processed`, `Tailored YAML`, `Error`
+- variant comparison writeback: `Validation Verdict`, `Validation Reason`, `Tailored Score`, `Generic Score`, `Use Resume`
+
+Disable variant comparison when needed:
+```bash
+cd /path/to/Job_Automation && python3 scripts/tools/tailor_from_urls.py --from-tailor-tab --no-validate-variants
+```
+
+Generate YAML only (skip QA/PDF):
+```bash
+cd /path/to/Job_Automation && python3 scripts/tools/tailor_from_urls.py --from-tailor-tab --skip-tailor-validation
+```
+
 ## Configuration
-- **Environment**: Copy `.env.example` to `.env`. Required: `GEMINI_API_KEY`.
+- **Environment**: Copy `.env.example` to `.env`. Required LLM key depends on `evaluation.provider`: **`OPENROUTER_API_KEY`** (openrouter), **`GEMINI_API_KEY`** (gemini), or **`OPENAI_API_KEY`** (openai).
 - **Google Sheet URL**: To use an existing workbook (recommended; avoids creating a new file in Drive), set either:
   - `sheet.spreadsheet_id` in `config/pipeline.yaml` (full URL or raw ID), or
   - `GOOGLE_SHEET_ID` in `.env` (same value).
@@ -86,9 +114,10 @@ For detailed agent instructions, see [.agent/workflows/job_pipeline.md](.agent/w
 cd /path/to/Job_Automation && python3 apps/cli/scripts/tools/build_dense_matrix.py
 ```
 - **Pipeline**: Edit `config/pipeline.yaml` to change:
-    - `sourcing`: Queries, `expand_ai_queries`, `use_ai_filter`, `jobspy_sites`.
+    - `sourcing`: Queries, `expand_ai_queries`, `use_ai_filter`, `jobspy_sites`, and once-per-cycle endpoint toggles (`run_smartrecruiters_once`, `run_recruitee_once`) with company slug lists.
     - `sourcing.use_ai_filter`: When `true`, runs an extra LLM “sniffer” after static filters (more cost; use when scrapers return noisy titles). Default is `false` for higher sheet yield.
     - `sourcing.jobspy_sites`: Sites passed to JobSpy (default omits Glassdoor because it often errors on location).
+    - `sourcing.smartrecruiters_companies` / `sourcing.recruitee_companies`: curated company slugs for optional public ATS pulls in the final community phase.
     - `filters`: Static rules (`inclusions`, `seniority_exclusions`, `seniority_soft_exclusions` + `seniority_soft_bypass_substrings`, locations). Each sourcing batch logs a **Sourcing filter summary** with reject counts by reason.
     - `evaluation`: `provider` (gemini), `gemini_model`.
     - `learning`: Enable/disable calibration, `max_abs_delta`, `patterns_path`.
@@ -106,6 +135,8 @@ cd /path/to/Job_Automation && python3 apps/cli/scripts/tools/build_job_digest.py
 # Build career strategy (roles + sectors + upskilling) from recent evaluation signals
 cd /path/to/Job_Automation && python3 apps/cli/scripts/tools/build_career_strategy.py
 ```
+
+For a consolidated command + flags reference, see `docs/AGENT_COMMANDS.md`.
 
 ## Job descriptions (JD)
 - **Local cache**: Full JDs are stored in `config/jd_cache.json` (keyed by canonical URL) to avoid cluttering Google Sheets while keeping evaluation context high.
