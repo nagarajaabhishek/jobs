@@ -1,0 +1,8 @@
+# Learned title phrases to drop at sourcing (before LLM eval). Regenerate with:
+#   python3 apps/cli/scripts/tools/learn_sourcing_filters_from_sheet.py
+#
+# After reviewing blocked_phrases, set in config/pipeline.yaml:
+#   sourcing.apply_learned_title_blocks: true
+#
+# This file is interpretable pattern mining from your sheet labels, not a neural model.
+blocked_phrases: []

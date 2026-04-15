@@ -2,6 +2,13 @@
   "venvPath": ".",
   "venv": ".venv",
   "extraPaths": [
-    "src"
+    "src",
+    "."
+  ],
+  "stubPath": "typings",
+  "reportMissingModuleSource": "none",
+  "exclude": [
+    "src",
+    "backlog"
   ]
 }

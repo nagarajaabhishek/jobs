@@ -20,5 +20,82 @@
     "usageMetadata": {
       "totalTokenCount": 3980
     }
+  },
+  "30a3f2e1fef0a2982ffc6033b85c3b745bd5ef4acced8a2bcb8a8e05003082b7": {
+    "name": "cachedContents/t7hvestb8e6gehll6ms3fdee5omsgh20sizv1rqx",
+    "model": "models/gemini-2.5-flash",
+    "createTime": "2026-04-08T16:37:35.774173Z",
+    "updateTime": "2026-04-08T16:37:35.774173Z",
+    "expireTime": "2026-04-08T17:37:35.356400237Z",
+    "displayName": "",
+    "usageMetadata": {
+      "totalTokenCount": 4266
+    }
+  },
+  "aac6ce0c6354aeffda25fc4e1c7c77cc0dbadd193761a707a6ea272229406df2": {
+    "name": "cachedContents/wp306c70v6u57ckmc3wazdc6f8fgaf1rpq0i07ip",
+    "model": "models/gemini-2.5-flash",
+    "createTime": "2026-04-10T00:15:38.651745Z",
+    "updateTime": "2026-04-10T00:15:38.651745Z",
+    "expireTime": "2026-04-10T01:15:37.865105397Z",
+    "displayName": "",
+    "usageMetadata": {
+      "totalTokenCount": 4546
+    }
+  },
+  "8d55e74ab5f6e9cf2a64cf4de5825dae8cf5e2a5e193cf5afb314dae128fb394": {
+    "name": "cachedContents/n2gidr4rtmv0y08no6hg9l2j3tjdee0aphbqky2k",
+    "model": "models/gemini-2.5-flash",
+    "createTime": "2026-04-10T00:23:52.460049Z",
+    "updateTime": "2026-04-10T00:23:52.460049Z",
+    "expireTime": "2026-04-10T01:23:52.090640547Z",
+    "displayName": "",
+    "usageMetadata": {
+      "totalTokenCount": 4762
+    }
+  },
+  "76e6ff1fef1598d842d3f2d37a2f93bc3778ef2165ab2aed866a4f5d111aff7f": {
+    "name": "cachedContents/2zc64ywsmx7ie250a2vp1bhe4nf3ntkddjz00zbv",
+    "model": "models/gemini-2.5-flash",
+    "createTime": "2026-04-10T03:05:55.840845Z",
+    "updateTime": "2026-04-10T03:05:55.840845Z",
+    "expireTime": "2026-04-10T04:05:55.526689662Z",
+    "displayName": "",
+    "usageMetadata": {
+      "totalTokenCount": 1485
+    }
+  },
+  "8f194db87a4f0ab9c1874bdc10cfa69e08229f92c53395d7cb8729178560db83": {
+    "name": "cachedContents/bcxpshs6pne2irmfzjrgjz7llhulb36mwh0ef4qf",
+    "model": "models/gemini-2.5-flash",
+    "createTime": "2026-04-10T03:32:15.071880Z",
+    "updateTime": "2026-04-10T03:32:15.071880Z",
+    "expireTime": "2026-04-10T04:32:14.512790794Z",
+    "displayName": "",
+    "usageMetadata": {
+      "totalTokenCount": 4628
+    }
+  },
+  "d917ccb5c07df62720d6557f1ee1052031bedd099b2a709da0dc6d979ffce096": {
+    "name": "cachedContents/orddfwz6fn4nyfde7znv6jbsaoat44utrk3dcaj1",
+    "model": "models/gemini-2.5-flash",
+    "createTime": "2026-04-10T05:43:02.236017Z",
+    "updateTime": "2026-04-10T05:43:02.236017Z",
+    "expireTime": "2026-04-10T06:43:01.808313697Z",
+    "displayName": "",
+    "usageMetadata": {
+      "totalTokenCount": 3974
+    }
+  },
+  "09cc5ff01feb7a0331caf00779d2516d2600e06074ad946c6dffc5eca218c64c": {
+    "name": "cachedContents/5gimvsat0c2qg76va7wfhfp7g482gzsgvl4orpx8",
+    "model": "models/gemini-2.5-flash",
+    "createTime": "2026-04-15T21:52:08.890928Z",
+    "updateTime": "2026-04-15T21:52:08.890928Z",
+    "expireTime": "2026-04-15T22:52:08.461713614Z",
+    "displayName": "",
+    "usageMetadata": {
+      "totalTokenCount": 1272
+    }
   }
 }

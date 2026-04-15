@@ -2,6 +2,18 @@ Arrowhead Programs:
   sentiment: Identified
   tech_stack:
   - N/A
+Boeing:
+  sentiment: Identified
+  tech_stack:
+  - Artificial Intelligence
+  - Artificial Intelligence (AI)
+  - Data Analytics
+  - Digital Productivity Tools
+  - Generative AI
+  - Large Language Models
+  - Large Language Models (LLMs)
+  - Workflow Automation
+  - Workflow Automation Platforms
 Broadcom:
   sentiment: Identified
   tech_stack:
@@ -64,6 +76,13 @@ Jiffy.com:
   sentiment: Identified
   tech_stack:
   - Unknown
+Klein Tools:
+  sentiment: Identified
+  tech_stack:
+  - Email
+  - Microsoft Excel
+  - Microsoft PowerPoint
+  - Microsoft Word
 Link Logistics Real Estate:
   sentiment: Identified
   tech_stack:
@@ -74,6 +93,13 @@ Medline Industries:
   - Microsoft Excel
   - Microsoft PowerPoint
   - Microsoft Word
+Micron Technology:
+  sentiment: Identified
+  tech_stack:
+  - AI Systems
+  - Computer Architecture
+  - Semiconductor Hardware
+  - Semiconductor Software
 Mindex:
   sentiment: Identified
   tech_stack:
@@ -176,3 +202,259 @@ ePremium Insurance:
   sentiment: Identified
   tech_stack:
   - Unknown
+.nan:
+  sentiment: Identified
+  tech_stack:
+  - MS Project
+  - Smartsheet
+WebMD:
+  sentiment: Identified
+  tech_stack:
+  - API Design
+  - AWS
+  - Agile
+  - Docker
+  - GenAI
+  - Jira
+  - LLMs
+  - LangChain/LangGraph
+  - Power BI
+  - Python
+  - SQL
+  - Scrum
+  - Tableau
+Spotify:
+  sentiment: Identified
+  tech_stack:
+  - Audio
+  - Cloud Computing
+  - Consumer Products
+  - Digital Media
+  - Digital Products
+  - Licensing
+  - Music
+  - Music Ecosystem
+  - Music Rights
+  - Music Streaming
+  - Podcast
+  - Video Platforms
+MEI Industrial Solutions:
+  sentiment: Identified
+  tech_stack:
+  - Excel
+  - MS Office
+  - Microsoft Project
+  - Outlook
+  - PowerPoint
+  - SharePoint
+  - Word
+The Cigna Group:
+  sentiment: Identified
+  tech_stack:
+  - Excel
+  - PowerPoint
+WEC Energy Group:
+  sentiment: Identified
+  tech_stack:
+  - MS Excel
+  - Power BI
+  - PowerPoint
+  - SQL Server
+  - Visio
+  - Word
+ATC Manufacturing:
+  sentiment: Identified
+  tech_stack:
+  - .NET
+  - Power BI
+  - PowerShell
+  - Python
+  - SQL
+  - XML
+Alignment Healthcare:
+  sentiment: Identified
+  tech_stack:
+  - Excel
+  - Power BI
+  - SharePoint
+  - Tableau
+First Tech Federal Credit Union:
+  sentiment: Identified
+  tech_stack:
+  - EZ Lynx
+  - Microsoft Office Suite
+University of Utah:
+  sentiment: Identified
+  tech_stack:
+  - GSuite
+  - Microsoft Excel
+  - Outlook
+  - Zoom
+DDRC:
+  sentiment: Identified
+  tech_stack:
+  - Microsoft Office
+  - web-based documentation systems
+AMD:
+  sentiment: Identified
+  tech_stack:
+  - Confluence
+  - Excel
+  - JIRA
+  - MS Office
+  - RTL design
+  - SharePoint
+  - silicon design process
+DrFirst, Inc.:
+  sentiment: Identified
+  tech_stack:
+  - AWS ecosystem
+  - Confluence
+  - Excel
+  - FHIR
+  - HL7
+  - Jira
+  - NCPDP SCRIPT Standard
+Visa:
+  sentiment: Identified
+  tech_stack:
+  - Analytics tools Excel
+  - Analytics tools MS Project
+  - Analytics tools PowerPoint
+  - Analytics tools Visio
+  - Data extraction
+  - Data normalization
+  - SQL querying
+Amphenol Communications Solutions:
+  sentiment: Identified
+  tech_stack:
+  - Microsoft Excel
+  - OSFP
+  - QSFP
+  - QSFP-DD
+Jabil:
+  sentiment: Identified
+  tech_stack:
+  - EAM
+  - ERP systems
+  - Excel
+  - MES
+  - PLM
+  - SQL
+Belmark inc:
+  sentiment: Identified
+  tech_stack:
+  - Asana
+  - Excel
+  - Figma
+  - Google Analytics
+  - Jira
+  - Microsoft Project
+  - Notion
+  - Power BI
+Live! Casino & Hotel Maryland:
+  sentiment: Identified
+  tech_stack:
+  - Access
+  - Aristocrat Oasis v12
+  - Bravo Poker
+  - Crystal Reporting
+  - IGT Table Touch
+  - Kronos
+  - MICROS
+  - Microsoft Excel
+  - PM10
+  - SQL
+  - Tableau
+  - Teradata
+Building Service 32BJ Benefit Funds:
+  sentiment: Identified
+  tech_stack:
+  - Microsoft Excel
+  - Microsoft PowerPoint
+  - Microsoft Visio
+  - Microsoft Word
+Sciens Logistics:
+  sentiment: Identified
+  tech_stack:
+  - Microsoft Office Suite
+VIR Properties:
+  sentiment: Identified
+  tech_stack:
+  - Asana
+  - Excel
+  - Google Analytics
+  - Jira
+  - Notion
+  - Power BI
+  - Python
+  - SQL
+We Energies:
+  sentiment: Identified
+  tech_stack:
+  - Microsoft Excel
+  - Microsoft Visio
+  - Microsoft Word
+Altera Digital Health APAC:
+  sentiment: Identified
+  tech_stack:
+  - Altera Solutions
+  - Microsoft technologies
+  - SQL
+Office of the NYS Comptroller Thomas P. DiNapoli:
+  sentiment: Identified
+  tech_stack:
+  - Business intelligence tools
+  - Java
+  - SQL
+  - VBA
+Altera Digital Health:
+  sentiment: Identified
+  tech_stack:
+  - Microsoft technologies
+  - SQL
+MiniMed:
+  sentiment: Identified
+  tech_stack:
+  - TMS (Translation Management System)
+  - content management systems (CMS)
+  - localization automation tools
+  - machine translation
+GAC Solutions:
+  sentiment: Identified
+  tech_stack:
+  - JIRA
+  - Power BI
+  - Visio
+A Hiring Company:
+  sentiment: Identified
+  tech_stack:
+  - Adobe Creative Suite
+Kinective:
+  sentiment: Identified
+  tech_stack:
+  - API
+  - Confluence
+  - Jira
+  - Power BI
+  - SQL
+  - Tableau
+Northwestern Mutual:
+  sentiment: Identified
+  tech_stack:
+  - Atlassian JIRA
+  - Microsoft Power BI
+  - SQL
+Bullhorn:
+  sentiment: Identified
+  tech_stack:
+  - AI-driven systems
+  - AI/ML-powered products
+  - workflow engines
+Ecotrak:
+  sentiment: Identified
+  tech_stack:
+  - AI tools
+  - Canva
+  - Figma
+  - HubSpot

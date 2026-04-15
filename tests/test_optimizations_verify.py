@@ -1,43 +1,25 @@
-from src.agents.evaluate_jobs import JobEvaluator
+"""Regression: core evaluator caches and prompt pieces load without error."""
+
 import os
 
-def test_optimizations():
-    print("--- Verifying Pipeline Optimizations ---")
+import pytest
+
+from apps.cli.legacy.agents.evaluate_jobs import JobEvaluator
+
+
+def test_optimizations_evaluator_grounding():
+    matrix_path = os.path.join(os.getcwd(), "data", "dense_master_matrix.json")
+    if not os.path.isfile(matrix_path):
+        pytest.skip(f"Missing {matrix_path}")
+
     evaluator = JobEvaluator()
-    
-    # 1. Check Role Summaries (Deep Match)
-    print(f"\n1. Role Summaries Loaded: {len(evaluator.role_summaries)}")
-    for role, summary in evaluator.role_summaries.items():
-        print(f"   - {role}: {len(summary)} chars")
-        if "SPECIALIZATION" not in summary:
-            print(f"     ❌ Summary for {role} looks incomplete.")
-    
-    # 2. Check Sponsorship Data
-    print(f"\n2. Sponsorship Database: {len(evaluator.sponsors)} entries")
-    test_companies = ["Google", "Siemens", "Verified Credentials", "Unknown Inc"]
-    for company in test_companies:
-        result = evaluator.get_verified_sponsorship(company)
-        print(f"   - {company}: {result}")
-
-    # 3. Check Strategic Priority
-    print(f"\n3. Strategic Priorities")
-    test_locs = ["Dallas, TX", "Austin, Texas", "Remote", "Dubai, UAE", "London, UK"]
-    for loc in test_locs:
-        priority = evaluator.get_strategic_priority(loc)
-        print(f"   - {loc}: {priority}")
-
-    # 4. Check Prompt Grounding
-    grounded = evaluator.load_user_profiles() # This would be called in evaluate_all
-    # But wait, evaluate_all builds the grounded_sys_prompt too.
-    # Let's check how the final prompt is constructed.
+    assert isinstance(evaluator.sponsors, dict)
+    assert evaluator.get_strategic_priority("Dallas, TX")
     sys_prompt = evaluator.load_system_prompt()
-    role_specs_text = "\n\n".join(evaluator.role_summaries.values())
-    final_grounded = f"{sys_prompt}\n\n### USER PROFILE SUMMARY\n{grounded}\n\n### ROLE-SPECIFIC SPECIALIZATIONS\n{role_specs_text}"
-    
-    if "ROLE-SPECIFIC SPECIALIZATIONS" in final_grounded:
-        print("\n✅ SUCCESS: Final grounded prompt includes specialization data.")
-    else:
-        print("\n❌ FAILURE: Grounded prompt is missing specialization data.")
-
-if __name__ == "__main__":
-    test_optimizations()
+    assert len(sys_prompt) > 200
+    profiles = evaluator.load_user_profiles()
+    assert "CANDIDATE DENSE MATRIX" in profiles
+    final_grounded = (
+        f"{sys_prompt}\n\n### USER PROFILE SUMMARY\n{profiles}"
+    )
+    assert "USER PROFILE SUMMARY" in final_grounded

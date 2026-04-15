@@ -45,7 +45,7 @@ graph TD
         SourcingAgent((Sourcing Agent))
         EvalAgent((Evaluation Agent))
         SponsorshipAgent((Sponsorship Agent))
-        LLMRouter{LLM Router - Gemini/OpenRouter}
+        LLMRouter{LLM Router - OpenRouter / Gemini / OpenAI}
     end
 
     %% Data Flow

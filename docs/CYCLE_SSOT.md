@@ -43,7 +43,7 @@ flowchart TD
 ```
 
 ### Preflight checklist
-- `GEMINI_API_KEY` present (or evaluation provider configured)
+- LLM key present for `evaluation.provider` (`OPENROUTER_API_KEY`, `GEMINI_API_KEY`, or `OPENAI_API_KEY`)
 - `config/credentials.json` present (Sheets)
 - Profile present + compiled:
   - `master_context.yaml` exists

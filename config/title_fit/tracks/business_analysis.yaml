@@ -1,0 +1,45 @@
+id: business_analysis
+display_name: "Business analysis"
+
+title_match:
+  - "business analyst"
+  - "business systems analyst"
+  - "business intelligence analyst"
+  - "reporting analyst"
+  - "operations analyst"
+  - "process analyst"
+  - "requirements analyst"
+
+block_title_tokens:
+  - "senior"
+  - "sr."
+  - "sr "
+  - "staff"
+  - "principal"
+  - "director"
+  - "head of"
+  - "vp "
+  - "vice president"
+  - "lead"
+  - "chief"
+
+# intern / internship optional via title_fit_user.yaml include_internship_entry_signals
+prefer_title_tokens:
+  - "associate"
+  - "assistant"
+  - "junior"
+  - "graduate"
+  - "entry"
+  - "early career"
+  - "junior business"
+
+ambiguous_title_tokens:
+  - "manager"
+
+strict_entry_substrings_when_untitled_pm: []
+
+min_yoe_patterns:
+  - '(?i)(?:minimum|min\.?|at least|require)\s*(\d+)\+?\s*years?'
+  - '(?i)(\d+)\+?\s*years?\s+(?:of\s+)?(?:experience|exp\.?)'
+
+slack_years_above_required: 1.0

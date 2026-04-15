@@ -3,8 +3,12 @@ import os
 import re
 import sys
 import json
+from datetime import datetime
 
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../../')))
+# agents -> legacy -> cli -> apps -> repo root (so `from apps.cli...` works when run as __main__)
+_PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", ".."))
+if _PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, _PROJECT_ROOT)
 import yaml # type: ignore
 from collections import Counter
 from typing import Any, Dict, List, Optional, Tuple
@@ -20,9 +24,10 @@ from apps.cli.legacy.core.score_calibrator import apply_calibration, _load_patte
 RESUME_AGENT_BASE_DIR = os.path.join("core_agents", "resume_agent", ".agent")
 TPM_OVERLAY_PATH = os.path.join(RESUME_AGENT_BASE_DIR, "overlays", "tpm_product.yaml")
 DEFAULT_ROLE_YAML_PATH = os.path.join(RESUME_AGENT_BASE_DIR, "data", "Abhishek", "role_product_ops.yaml")
+INTERVIEW_STORY_BANK_MAX_CHARS = 4500
 
 # Fallback when config not used
-BATCH_EVAL_SIZE_DEFAULT = 4
+BATCH_EVAL_SIZE_DEFAULT = 3
 SHEET_BATCH_SIZE_DEFAULT = 25
 
 
@@ -58,6 +63,47 @@ def build_evaluation_update(
     )
 
 
+def _clip_jd_for_batch_prompt(jd_text: str, max_chars: int) -> str:
+    """Shorten JD embedded in multi-job user prompts to reduce output truncation (NEEDS_REVIEW)."""
+    if max_chars <= 0 or len(jd_text) <= max_chars:
+        return jd_text
+    return (
+        jd_text[:max_chars]
+        + "\n[...truncated in batch prompt for token limits; full JD is in local cache.]"
+    )
+
+
+def _repair_reasoning_json_newlines(json_str: str) -> str:
+    """
+    Models often emit multiline text inside "reasoning": "..." which breaks json.loads.
+    Collapse raw newlines inside that one string value to spaces so the blob can parse.
+    """
+    m = re.search(r'"reasoning"\s*:\s*"', json_str)
+    if not m:
+        return json_str
+    start = m.end()
+    i = start
+    while i < len(json_str):
+        c = json_str[i]
+        if c == "\\" and i + 1 < len(json_str):
+            i += 2
+            continue
+        if c == '"':
+            rest = json_str[i + 1 : i + 24].lstrip()
+            if rest.startswith(",") or rest.startswith("}"):
+                inner = json_str[start:i]
+                if "\n" in inner or "\r" in inner:
+                    fixed = (
+                        inner.replace("\r\n", " ")
+                        .replace("\n", " ")
+                        .replace("\r", " ")
+                    )
+                    return json_str[:start] + fixed + json_str[i:]
+                return json_str
+        i += 1
+    return json_str
+
+
 def score_to_verdict(score: int) -> str:
     """Map Apply Conviction Score to tiered verdict. Single source of truth for tests and evaluate_all."""
     if score >= 85:
@@ -81,6 +127,11 @@ class JobEvaluator:
             os.path.dirname(os.path.dirname(__file__)),
             "prompts",
             "gemini_job_fit_analyst.md",
+        )
+        self.deep_packet_prompt_path = os.path.join(
+            os.path.dirname(os.path.dirname(__file__)),
+            "prompts",
+            "deep_job_packet.md",
         )
         self.roles = sorted([
             "Product Manager (TPM)", "Product Owner (PO)", "Business Analyst (BA)", 
@@ -118,7 +169,16 @@ class JobEvaluator:
 
     def get_verified_sponsorship(self, company):
         """Checks if a company has a verified sponsorship history."""
-        if not company: return "Unknown"
+        # Sheets / pandas can surface empty cells as float NaN; normalize before .lower().
+        if company is None:
+            return "Unknown"
+        try:
+            c = str(company).strip()
+        except Exception:
+            return "Unknown"
+        if not c or c.lower() in ("nan", "none", "nat"):
+            return "Unknown"
+        company = c
         # Exact match or partial match
         for key, val in self.sponsors.items():
             if key.lower() == company.lower() or key.lower() in company.lower():
@@ -138,9 +198,22 @@ class JobEvaluator:
 
     def update_sponsorship_cache(self, company, status):
         """Updates the sponsorship cache if a definitive status is found."""
-        if not company or not status: return
-        clean_company = company.strip()
-        clean_status = status.strip()
+        if company is None or status is None:
+            return
+        if isinstance(company, float) and company != company:  # NaN from sheets
+            return
+        try:
+            clean_company = str(company).strip()
+        except Exception:
+            return
+        if not clean_company or clean_company.lower() in ("nan", "none", "nat"):
+            return
+        try:
+            clean_status = str(status).strip()
+        except Exception:
+            return
+        if not clean_status:
+            return
         
         # We only cache definitive "Likely" or "Unlikely" status from the LLM
         # if the company isn't already verified with a strong record.
@@ -178,7 +251,10 @@ class JobEvaluator:
         # 2. Prepare Context
         sys_prompt = self.load_system_prompt()
         profiles_prompt = self.load_user_profiles()
-        grounded_sys_prompt = f"{sys_prompt}\n\n### USER PROFILE SUMMARY\n{profiles_prompt}"
+        story_excerpt = self.load_interview_story_bank_excerpt()
+        grounded_sys_prompt = (
+            f"{sys_prompt}\n\n### USER PROFILE SUMMARY\n{profiles_prompt}{story_excerpt}"
+        )
         
         # 3. Prepare Job Data (minimal)
         # In a single eval, we might not have the full job record if coming from ADK tool.
@@ -374,6 +450,177 @@ class JobEvaluator:
                 f"Details: {e}"
             )
 
+    def load_interview_story_bank_excerpt(self) -> str:
+        """Optional STAR story bank (data/interview_story_bank.md) injected into the analyst prompt."""
+        path = os.environ.get("INTERVIEW_STORY_BANK_PATH") or os.path.join(
+            os.getcwd(), "data", "interview_story_bank.md"
+        )
+        if not os.path.isfile(path):
+            return ""
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                text = f.read().strip()
+            if not text:
+                return ""
+            cap = int(os.environ.get("INTERVIEW_STORY_BANK_MAX_CHARS") or INTERVIEW_STORY_BANK_MAX_CHARS)
+            if len(text) > cap:
+                text = text[:cap] + "\n\n[... truncated for context window ...]"
+            return (
+                "\n\n### INTERVIEW STORY BANK EXCERPT (read-only; align hooks, do not invent facts)\n"
+                + text
+            )
+        except OSError:
+            return ""
+
+    def _load_deep_packet_system_prompt(self) -> str:
+        try:
+            with open(self.deep_packet_prompt_path, "r", encoding="utf-8") as f:
+                return f.read()
+        except OSError:
+            return ""
+
+    def _run_deep_job_packet(
+        self,
+        job: Dict[str, Any],
+        jd_text: str,
+        final_score: int,
+        reasoning: str,
+        recommended_resume: str,
+        h1b: str,
+        evidence_json: str,
+    ) -> str:
+        """
+        Optional second LLM pass: write data/deep_packets/<date>_r<row>.md.
+        Returns relative path from cwd, empty if skipped, or ERROR:* for sheet visibility.
+        """
+        eval_cfg = get_evaluation_config()
+        if not eval_cfg.get("deep_eval_enabled", False):
+            return ""
+        min_sc = int(eval_cfg.get("deep_eval_min_score", 90))
+        if final_score < min_sc:
+            return ""
+
+        system_prompt = self._load_deep_packet_system_prompt()
+        if not system_prompt.strip():
+            return "ERROR: deep packet prompt missing"
+
+        profiles = self.load_user_profiles()
+        if len(profiles) > 14000:
+            profiles = profiles[:14000] + "\n[... profile truncated ...]"
+
+        company = job.get("Company") or ""
+        title = job.get("Role Title") or ""
+        jd_chunk = (jd_text or "")[:28000]
+
+        user_prompt = (
+            "### USER PROFILE SUMMARY (dense matrix excerpt)\n"
+            f"{profiles}\n\n"
+            "### PRIMARY EVALUATION (already completed — do not contradict)\n"
+            f"Apply conviction (final): {final_score}\n"
+            f"Recommended resume variant: {recommended_resume}\n"
+            f"H1B sponsorship field: {h1b}\n"
+            f"Reasoning:\n{reasoning}\n\n"
+            "### STRUCTURED EVIDENCE JSON\n"
+            f"{evidence_json or '{}'}\n\n"
+            "### TARGET JOB\n"
+            f"Title: {title}\nCompany: {company}\n\n### JOB DESCRIPTION\n{jd_chunk}"
+        )
+
+        eval_model = eval_cfg.get("gemini_model")
+        raw, engine_used = self.llm.generate_content(
+            system_prompt,
+            user_prompt,
+            formatting_instruction=self.formatting_instruction,
+            model=eval_model,
+        )
+        if engine_used == "FAILED" or not (raw or "").strip():
+            return "ERROR: deep packet LLM failed"
+
+        text = raw.strip()
+        start = text.find("{")
+        end = text.rfind("}")
+        if start == -1 or end == -1 or end <= start:
+            return "ERROR: deep packet JSON not found"
+        try:
+            obj = json.loads(text[start : end + 1])
+            md = (obj.get("markdown") or "").strip()
+        except (json.JSONDecodeError, TypeError, AttributeError):
+            return "ERROR: deep packet parse failed"
+        if not md:
+            return "ERROR: deep packet empty markdown"
+
+        out_dir = os.path.join(os.getcwd(), "data", "deep_packets")
+        os.makedirs(out_dir, exist_ok=True)
+        date_str = datetime.now().strftime("%Y-%m-%d")
+        row_ix = int(job.get("_row_index", 0))
+        fname = f"{date_str}_r{row_ix}.md"
+        abs_path = os.path.join(out_dir, fname)
+        try:
+            with open(abs_path, "w", encoding="utf-8") as f:
+                f.write(md)
+        except OSError as e:
+            return f"ERROR: write failed ({e})"
+        return os.path.relpath(abs_path, os.getcwd())
+
+    def _write_tailor_payload_json(
+        self,
+        job: Dict[str, Any],
+        jd_text: str,
+        final_score: int,
+        recommended_resume: str,
+        missing: str,
+        evidence_json: str,
+    ) -> str:
+        """
+        Optional JSON for external resume/PDF tooling (career-ops–style).
+        Gated by config + score >= evaluation.tailor_min_score.
+        Returns relative path or "".
+        """
+        eval_cfg = get_evaluation_config()
+        tailor_min = int(eval_cfg.get("tailor_min_score", 90))
+        if not eval_cfg.get("export_tailor_json", False) or final_score < tailor_min:
+            return ""
+
+        evidence_list: Any = []
+        try:
+            o = json.loads(evidence_json or "{}")
+            if isinstance(o, dict):
+                evidence_list = o.get("evidence") or []
+        except (json.JSONDecodeError, TypeError):
+            evidence_list = []
+
+        gaps = [s.strip() for s in (missing or "").split(",") if s.strip()]
+        job_link = job.get("Job Link") or job.get("url") or ""
+
+        payload = {
+            "exported_at": datetime.now().strftime("%Y-%m-%dT%H:%M:%S"),
+            "row_index": job.get("_row_index"),
+            "job_link": job_link,
+            "company": job.get("Company"),
+            "role_title": job.get("Role Title"),
+            "apply_conviction_score": final_score,
+            "recommended_resume": recommended_resume,
+            "skill_gaps": gaps,
+            "jd_excerpt": (jd_text or "")[:12000],
+            "evidence": evidence_list,
+            "notes": "For LaTeX, Playwright/HTML PDF, or manual tailoring; verify before submit.",
+        }
+
+        out_dir = os.path.join(os.getcwd(), "data", "tailor_payloads")
+        os.makedirs(out_dir, exist_ok=True)
+        date_str = datetime.now().strftime("%Y-%m-%d")
+        row_ix = int(job.get("_row_index", 0))
+        fname = f"{date_str}_row{row_ix}.json"
+        abs_path = os.path.join(out_dir, fname)
+        try:
+            with open(abs_path, "w", encoding="utf-8") as f:
+                json.dump(payload, f, ensure_ascii=False, indent=2)
+        except OSError:
+            return ""
+        rel = os.path.relpath(abs_path, os.getcwd())
+        print(f"    📎 Tailor payload: {rel}")
+        return rel
+
     def get_profile_skill_keywords(self):
         """Extract searchable skill keywords from the dense matrix for overlap counting."""
         keywords = set()
@@ -426,7 +673,8 @@ class JobEvaluator:
                 self._tpm_overlay = {}
         else:
             self._tpm_overlay = {}
-        return self._tpm_overlay
+        ov = self._tpm_overlay
+        return ov if isinstance(ov, dict) else {}
 
     def _load_content_pillars_md(self) -> str:
         if self._content_pillars_md is not None:
@@ -747,7 +995,14 @@ class JobEvaluator:
         if start == -1 or end == -1 or end <= start:
             raise ValueError("No JSON object found in model output.")
         json_str = text[start : end + 1]
-        data = json.loads(json_str)
+        try:
+            data = json.loads(json_str)
+        except json.JSONDecodeError as first_err:
+            repaired = _repair_reasoning_json_newlines(json_str)
+            try:
+                data = json.loads(repaired)
+            except json.JSONDecodeError as e:
+                raise ValueError(f"JSON parse error after repair: {e}") from first_err
 
         # HEAL JSON: Handle common LLM quirks (like returning lists for scalar fields)
         score = data.get("apply_conviction_score", 0)
@@ -813,6 +1068,41 @@ class JobEvaluator:
             score += 10
         return score
 
+    def _retry_single_job_eval_raw(
+        self,
+        job: Any,
+        grounded_sys_prompt: str,
+        profile_keywords: Any,
+        eval_model: Optional[str],
+        jd_cap: int,
+    ) -> Tuple[str, str]:
+        """Second LLM call with one job only when batch output was missing/invalid for that row."""
+        job_link = job.get("Job Link") or job.get("url") or ""
+        jd_text = (self.sheets_client.get_jd_for_url(job_link) or "").strip()
+        if not jd_text:
+            return "", "FAILED"
+        company = job.get("Company") or ""
+        location = job.get("Location") or ""
+        jd_prompt = _clip_jd_for_batch_prompt(jd_text, jd_cap) if jd_cap > 0 else jd_text
+        sponsor_info = self.get_verified_sponsorship(company)
+        priority = self.get_strategic_priority(location)
+        overlap = self.count_skill_overlap(jd_text, profile_keywords)
+        nudge = f"\n[Pre-check: {overlap} skill overlap.]"
+        user_prompt = (
+            f"### JOB POSTING\n"
+            f"Title: {job.get('Role Title')}\n"
+            f"Company: {company}\n"
+            f"Strategic Priority: {priority}\n"
+            f"Verified Sponsorship History: {sponsor_info}\n"
+            f"JD Content: {jd_prompt}{nudge}"
+        )
+        return self.llm.generate_content(
+            grounded_sys_prompt,
+            user_prompt,
+            formatting_instruction=self.formatting_instruction,
+            model=eval_model,
+        )
+
     def evaluate_all(self, mode="NEW", limit=None, cycle_id: Optional[str] = None):
         eval_cfg = get_evaluation_config()
         learn_cfg = get_learning_config()
@@ -820,6 +1110,17 @@ class JobEvaluator:
             limit = eval_cfg.get("limit", 300)
         sheet_batch_size = eval_cfg.get("sheet_batch_size", SHEET_BATCH_SIZE_DEFAULT)
         batch_size = eval_cfg.get("batch_eval_size", BATCH_EVAL_SIZE_DEFAULT)
+        jd_cap_batch = int(eval_cfg.get("batch_jd_max_chars", 0) or 0)
+        skip_llm_below = int(eval_cfg.get("skip_llm_if_fallback_below", 0) or 0)
+        snippet_first_enabled = bool(eval_cfg.get("snippet_first_enabled", False))
+        snippet_first_chars = int(eval_cfg.get("snippet_first_chars", 2200) or 2200)
+        gray_zone_retry = bool(eval_cfg.get("gray_zone_full_jd_retry", True))
+        gray_min = int(eval_cfg.get("gray_zone_min_score", 68) or 68)
+        gray_max = int(eval_cfg.get("gray_zone_max_score", 82) or 82)
+        if gray_max < gray_min:
+            gray_min, gray_max = gray_max, gray_min
+        eval_model = eval_cfg.get("gemini_model")
+        tailor_min = int(eval_cfg.get("tailor_min_score", 90))
 
         cid = cycle_id or os.environ.get("PIPELINE_CYCLE_ID", "")
 
@@ -828,6 +1129,12 @@ class JobEvaluator:
         if mode == "MAYBE":
             print("Fetching 'Maybe' jobs for re-evaluation...")
             new_jobs, worksheet = self.sheets_client.get_maybe_jobs(limit=limit)
+        elif mode == "NEEDS_REVIEW":
+            print("Fetching NEEDS_REVIEW jobs for re-evaluation...")
+            new_jobs, worksheet = self.sheets_client.get_needs_review_jobs(limit=limit)
+        elif mode == "LLM_FAILED":
+            print("Fetching LLM_FAILED jobs for re-evaluation...")
+            new_jobs, worksheet = self.sheets_client.get_llm_failed_jobs(limit=limit)
         else:
             print("Fetching NEW jobs from Google Sheets...")
             new_jobs, worksheet = self.sheets_client.get_new_jobs(limit=limit)
@@ -839,9 +1146,12 @@ class JobEvaluator:
         print(f"Found {len(new_jobs)} jobs. Loading Context...")
         sys_prompt = self.load_system_prompt()
         profiles_prompt = self.load_user_profiles()
-        
+        story_excerpt = self.load_interview_story_bank_excerpt()
+
         already_seen = self.sheets_client.get_already_evaluated_or_applied_canonical_urls()
-        grounded_sys_prompt = f"{sys_prompt}\n\n### USER PROFILE SUMMARY\n{profiles_prompt}"
+        grounded_sys_prompt = (
+            f"{sys_prompt}\n\n### USER PROFILE SUMMARY\n{profiles_prompt}{story_excerpt}"
+        )
         
         profile_keywords = self.get_profile_skill_keywords()
         evaluated_match_types = []
@@ -856,10 +1166,10 @@ class JobEvaluator:
             canonical = normalize_job_url(job.get("Job Link") or job.get("url") or "")
             target_ws = job.get("_worksheet") or worksheet
             
-            # Calibration: In re-evaluation mode, we DON'T skip already seen if they are "Maybe"
-            is_maybe_reeval = (mode == "MAYBE")
-            
-            if canonical and canonical in already_seen and not is_maybe_reeval:
+            # Re-eval modes: URL may already be EVALUATED elsewhere; still re-run these rows.
+            is_reeval_mode = mode in ("MAYBE", "NEEDS_REVIEW", "LLM_FAILED")
+
+            if canonical and canonical in already_seen and not is_reeval_mode:
                 print(f"  Skip (already seen): {job.get('Role Title')} at {job.get('Company')}")
                 if target_ws not in updates_by_ws: updates_by_ws[target_ws] = []
                 updates_by_ws[target_ws].append(
@@ -909,6 +1219,7 @@ class JobEvaluator:
             chunk = to_eval[chunk_start : chunk_start + batch_size] # type: ignore
             chunk_eval: List[Any] = []
             job_contexts: List[str] = []
+            snippet_used_rows: set[int] = set()
             for job in chunk:
                 job_link = job.get("Job Link") or job.get("url") or ""
                 company = job.get("Company") or ""
@@ -933,6 +1244,33 @@ class JobEvaluator:
                     )  # type: ignore
                     evaluated_match_types.append("⚠️ Missing JD")
                     continue
+
+                # Optional token saver: skip LLM calls for rows that a deterministic heuristic
+                # already estimates below threshold.
+                if skip_llm_below > 0:
+                    est_score = self._compute_fallback_score(jd_text, location)
+                    if est_score < skip_llm_below:
+                        target_ws = job.get("_worksheet") or worksheet
+                        if target_ws not in updates_by_ws:
+                            updates_by_ws[target_ws] = []
+                        reason = (
+                            f"Skipped LLM by pre-gate: fallback estimate {est_score} < "
+                            f"{skip_llm_below}."
+                        )
+                        updates_by_ws[target_ws].append(
+                            build_evaluation_update(
+                                job["_row_index"],
+                                "📉 Low Priority",
+                                "None (Pre-gate)",
+                                "N/A",
+                                "N/A",
+                                reason,
+                                est_score,
+                                reason,
+                            )
+                        )  # type: ignore
+                        evaluated_match_types.append("📉 Low Priority")
+                        continue
                 
                 chunk_eval.append(job)
                 sponsor_info = self.get_verified_sponsorship(company)
@@ -940,14 +1278,21 @@ class JobEvaluator:
                 
                 overlap = self.count_skill_overlap(jd_text, profile_keywords)
                 nudge = f"\n[Pre-check: {overlap} skill overlap.]"
-                
+                jd_for_prompt = _clip_jd_for_batch_prompt(jd_text, jd_cap_batch)
+                if snippet_first_enabled and snippet_first_chars > 0 and len(jd_for_prompt) > snippet_first_chars:
+                    jd_for_prompt = jd_for_prompt[:snippet_first_chars]
+                    try:
+                        snippet_used_rows.add(int(job.get("_row_index", 0)))
+                    except Exception:
+                        pass
+
                 job_context = (
                     f"### JOB POSTING {len(job_contexts) + 1}\n"
                     f"Title: {job.get('Role Title')}\n"
                     f"Company: {company}\n"
                     f"Strategic Priority: {priority}\n"
                     f"Verified Sponsorship History: {sponsor_info}\n"
-                    f"JD Content: {jd_text}{nudge}"
+                    f"JD Content: {jd_for_prompt}{nudge}"
                 )
                 job_contexts.append(job_context)
             
@@ -962,9 +1307,6 @@ class JobEvaluator:
                 )
 
             print(f"  Batch evaluating jobs {chunk_start+1}-{chunk_start+len(chunk_eval)} ({len(chunk_eval)} with JD)...")
-            eval_cfg = get_evaluation_config()
-            eval_model = eval_cfg.get("gemini_model")
-            
             raw_text, engine_used = self.llm.generate_content(
                 grounded_sys_prompt, user_prompt, 
                 formatting_instruction=self.formatting_instruction,
@@ -975,32 +1317,67 @@ class JobEvaluator:
                 for job in chunk_eval:
                     target_ws = job.get("_worksheet") or worksheet
                     if target_ws not in updates_by_ws: updates_by_ws[target_ws] = []
+                    fail_note = (
+                        "LLM request failed (timeout, rate limit, or provider error). "
+                        "No conviction score; re-run after checking API keys and quotas."
+                    )
                     updates_by_ws[target_ws].append(
                         build_evaluation_update(
                             job["_row_index"],
-                            "⚖️ Worth Considering",
+                            "NEEDS_REVIEW",
                             "Unknown",
                             "N/A",
                             "N/A",
-                            "LLM failed",
+                            fail_note,
                             0,
-                            "LLM failed",
+                            fail_note,
+                            evidence_json=json.dumps(
+                                {"error": "llm_failed", "engine": str(engine_used)},
+                                ensure_ascii=False,
+                            ),
                         )
                     )  # type: ignore
-                    evaluated_match_types.append("⚖️ Worth Considering")
+                    evaluated_match_types.append("NEEDS_REVIEW")
                 continue
 
             blocks = self._split_batch_evaluation_blocks(raw_text, len(chunk_eval))
             for job, block in zip(chunk_eval, blocks):
                 target_ws = job.get("_worksheet") or worksheet
                 if target_ws not in updates_by_ws: updates_by_ws[target_ws] = []
-                
-                if block:
+
+                block_text = (block or "").strip()
+                if not block_text:
+                    print(f"    ↻ Empty batch slot → single-job retry: {job.get('Role Title')}")
+                    r_raw, r_eng = self._retry_single_job_eval_raw(
+                        job, grounded_sys_prompt, profile_keywords, eval_model, jd_cap_batch
+                    )
+                    if r_eng != "FAILED":
+                        block_text = (r_raw or "").strip()
+
+                parsed: Optional[Tuple[Any, ...]] = None
+                parse_err: Optional[BaseException] = None
+                if block_text:
                     try:
-                        parsed = self.parse_evaluation(block)
-                        match_type, rec, h1b, loc, missing, reasoning, salary, tech, score = parsed
+                        parsed = self.parse_evaluation(block_text)
                     except Exception as e:
-                        fallback = "NEEDS_REVIEW"
+                        parse_err = e
+
+                if parsed is None and block_text:
+                    print(f"    ↻ Parse error → single-job retry: {job.get('Role Title')}")
+                    r_raw, r_eng = self._retry_single_job_eval_raw(
+                        job, grounded_sys_prompt, profile_keywords, eval_model, jd_cap_batch
+                    )
+                    if r_eng != "FAILED" and (r_raw or "").strip():
+                        block_text = (r_raw or "").strip()
+                        try:
+                            parsed = self.parse_evaluation(block_text)
+                            parse_err = None
+                        except Exception as e2:
+                            parse_err = e2
+
+                if parsed is None:
+                    fallback = "NEEDS_REVIEW"
+                    if parse_err:
                         updates_by_ws[target_ws].append(
                             build_evaluation_update(
                                 job["_row_index"],
@@ -1012,136 +1389,199 @@ class JobEvaluator:
                                 0,
                                 "Model output invalid. Needs review.",
                                 evidence_json=json.dumps(
-                                    {"error": "parse_error", "message": str(e), "raw": (block or "")[:4000]},
+                                    {
+                                        "error": "parse_error",
+                                        "message": str(parse_err),
+                                        "raw": (block_text or "")[:4000],
+                                    },
                                     ensure_ascii=False,
                                 ),
                             )
                         )
-                        evaluated_match_types.append(fallback)
-                        continue
-                    evidence_json = ""
-                    try:
-                        start = block.find("{")
-                        end = block.rfind("}")
-                        if start != -1 and end != -1:
-                            obj = json.loads(block[start : end + 1])
-                            evidence_json = json.dumps(
-                                {
-                                    "score_breakdown": obj.get("score_breakdown") or {},
-                                    "evidence": obj.get("evidence") or [],
-                                    "confidence": obj.get("confidence"),
-                                    "jd_quality": obj.get("jd_quality"),
-                                    "output_quality": obj.get("output_quality"),
-                                },
-                                ensure_ascii=False,
-                            )
-                    except Exception:
-                        evidence_json = ""
-
-                    jd_link = job.get("Job Link") or job.get("url") or ""
-                    jd_text = (self.sheets_client.get_jd_for_url(jd_link) or "").strip()
-
-                    # FALLBACK CALCULATION: If LLM failed score or was 0, use metrics
-                    if score == 0:
-                        current_jd = self.sheets_client.get_jd_for_url(jd_link) or ""
-                        score = self._compute_fallback_score(current_jd, job.get("Location") or "")
-
-                    base_score = score
-
-                    # Post-LLM calibration (learned patterns)
-                    if learn_cfg.get("enabled", True):
-                        max_delta = int(learn_cfg.get("max_abs_delta", 15))
-                        pp = learn_cfg.get("patterns_path", "data/learned_patterns.yaml")
-                        ppath = pp if os.path.isabs(pp) else os.path.join(os.getcwd(), pp)
-                        patterns = _load_patterns(ppath)
-                        final_score, audit = apply_calibration(
-                            base_score,
-                            jd_text,
-                            title=job.get("Role Title") or "",
-                            company=job.get("Company") or "",
-                            patterns=patterns,
-                            max_abs_delta=max_delta,
-                            cycle_id=cid,
-                        )
                     else:
-                        final_score = base_score
-                        audit = DecisionAudit(
-                            base_llm_score=base_score,
-                            calibration_delta=0,
-                            final_score=base_score,
-                            matched_patterns=[],
-                            cycle_id=cid,
+                        updates_by_ws[target_ws].append(
+                            build_evaluation_update(
+                                job["_row_index"],
+                                fallback,
+                                "Unknown",
+                                "N/A",
+                                "N/A",
+                                "Model output missing/invalid. Needs review.",
+                                0,
+                                "Model output missing/invalid. Needs review.",
+                                evidence_json=json.dumps(
+                                    {
+                                        "error": "empty_block_or_split_failure",
+                                        "raw": (block_text or "")[:1000],
+                                    },
+                                    ensure_ascii=False,
+                                ),
+                            )
                         )
+                    evaluated_match_types.append(fallback)
+                    continue
 
-                    # Tiered Verdict Mapping (single source of truth)
-                    match_type = score_to_verdict(final_score)
+                match_type, rec, h1b, loc, missing, reasoning, salary, tech, score = parsed
+                try:
+                    row_ix = int(job.get("_row_index", 0))
+                except Exception:
+                    row_ix = 0
+                if (
+                    gray_zone_retry
+                    and row_ix in snippet_used_rows
+                    and gray_min <= int(score) <= gray_max
+                ):
+                    print(
+                        f"    ↻ Gray-zone ({score}) from snippet pass → full-JD retry: "
+                        f"{job.get('Role Title')}"
+                    )
+                    r_raw2, r_eng2 = self._retry_single_job_eval_raw(
+                        job, grounded_sys_prompt, profile_keywords, eval_model, 0
+                    )
+                    if r_eng2 != "FAILED" and (r_raw2 or "").strip():
+                        try:
+                            parsed2 = self.parse_evaluation((r_raw2 or "").strip())
+                            (
+                                match_type,
+                                rec,
+                                h1b,
+                                loc,
+                                missing,
+                                reasoning,
+                                salary,
+                                tech,
+                                score,
+                            ) = parsed2
+                            block_text = (r_raw2 or "").strip()
+                        except Exception:
+                            pass
 
-                    if final_score >= 90:
-                        job_payload = job.copy()
-                        job_payload["evaluation_score"] = final_score
-                        job_payload["description"] = jd_text
-                        high_scoring_tailor_jobs.append(job_payload)
+                evidence_json = ""
+                try:
+                    start = block_text.find("{")
+                    end = block_text.rfind("}")
+                    if start != -1 and end != -1:
+                        obj = json.loads(block_text[start : end + 1])
+                        evidence_json = json.dumps(
+                            {
+                                "score_breakdown": obj.get("score_breakdown") or {},
+                                "evidence": obj.get("evidence") or [],
+                                "confidence": obj.get("confidence"),
+                                "jd_quality": obj.get("jd_quality"),
+                                "output_quality": obj.get("output_quality"),
+                            },
+                            ensure_ascii=False,
+                        )
+                except Exception:
+                    evidence_json = ""
 
-                    # Update all caches
-                    eval_results = {
-                        "h1b": h1b,
-                        "missing_skills": missing,
-                        "salary": salary,
-                        "tech_stack": tech,
-                        "recommended_resume": rec,
-                        "score": final_score,
-                    }
-                    self.update_sponsorship_cache(job.get("Company"), h1b)
-                    self.update_intelligence_caches(job, eval_results)
+                jd_link = job.get("Job Link") or job.get("url") or ""
+                jd_text = (self.sheets_client.get_jd_for_url(jd_link) or "").strip()
 
-                    # Optional role-aware judge + ATS enrichment (TPM/Product cluster only)
-                    judge_fields: Dict[str, Any] = self._run_role_judge_and_ats(
-                        job=job,
-                        jd_text=jd_text,
-                        final_score=final_score,
-                        recommended_resume=rec,
+                # FALLBACK CALCULATION: If LLM failed score or was 0, use metrics
+                if score == 0:
+                    current_jd = self.sheets_client.get_jd_for_url(jd_link) or ""
+                    score = self._compute_fallback_score(current_jd, job.get("Location") or "")
+
+                base_score = score
+
+                # Post-LLM calibration (learned patterns)
+                if learn_cfg.get("enabled", True):
+                    max_delta = int(learn_cfg.get("max_abs_delta", 15))
+                    pp = learn_cfg.get("patterns_path", "data/learned_patterns.yaml")
+                    ppath = pp if os.path.isabs(pp) else os.path.join(os.getcwd(), pp)
+                    patterns = _load_patterns(ppath)
+                    final_score, audit = apply_calibration(
+                        base_score,
+                        jd_text,
+                        title=job.get("Role Title") or "",
+                        company=job.get("Company") or "",
+                        patterns=patterns,
+                        max_abs_delta=max_delta,
+                        cycle_id=cid,
+                    )
+                else:
+                    final_score = base_score
+                    audit = DecisionAudit(
+                        base_llm_score=base_score,
+                        calibration_delta=0,
+                        final_score=base_score,
+                        matched_patterns=[],
+                        cycle_id=cid,
                     )
 
-                    # Prefer dict update path so we can attach extra columns without
-                    # breaking legacy tuple callers.
-                    update_payload: Dict[str, Any] = {
-                        "row_index": job["_row_index"],
-                        "match_type": match_type,
-                        "recommended": rec,
-                        "h1b": h1b,
-                        "loc_ver": loc,
-                        "missing": missing,
-                        "score": final_score,
-                        "reasoning": reasoning,
-                        "calibration_delta": audit.calibration_delta,
-                        "decision_audit_json": audit.to_json(),
-                        "base_llm_score": base_score,
-                        "evidence_json": evidence_json,
-                    }
-                    update_payload.update(judge_fields)
+                # Tiered Verdict Mapping (single source of truth)
+                match_type = score_to_verdict(final_score)
 
-                    updates_by_ws[target_ws].append(update_payload)  # type: ignore
-                    evaluated_match_types.append(match_type)
-                    print(f"    ✅ Eval complete: {job.get('Role Title')} -> {match_type} ({final_score})")
-                else:
-                    fallback = "NEEDS_REVIEW"
-                    updates_by_ws[target_ws].append(
-                        build_evaluation_update(
-                            job["_row_index"],
-                            fallback,
-                            "Unknown",
-                            "N/A",
-                            "N/A",
-                            "Model output missing/invalid. Needs review.",
-                            0,
-                            "Model output missing/invalid. Needs review.",
-                            evidence_json=json.dumps(
-                                {"error": "empty_block_or_split_failure", "raw": (block or "")[:1000]},
-                                ensure_ascii=False,
-                            ),
-                        )
-                    )  # type: ignore
-                    evaluated_match_types.append(fallback)
+                if final_score >= tailor_min:
+                    job_payload = job.copy()
+                    job_payload["evaluation_score"] = final_score
+                    job_payload["description"] = jd_text
+                    job_payload["recommended_resume"] = rec
+                    high_scoring_tailor_jobs.append(job_payload)
+
+                # Update all caches
+                eval_results = {
+                    "h1b": h1b,
+                    "missing_skills": missing,
+                    "salary": salary,
+                    "tech_stack": tech,
+                    "recommended_resume": rec,
+                    "score": final_score,
+                }
+                self.update_sponsorship_cache(job.get("Company"), h1b)
+                self.update_intelligence_caches(job, eval_results)
+
+                # Optional role-aware judge + ATS enrichment (TPM/Product cluster only)
+                judge_fields: Dict[str, Any] = self._run_role_judge_and_ats(
+                    job=job,
+                    jd_text=jd_text,
+                    final_score=final_score,
+                    recommended_resume=rec,
+                )
+
+                # Prefer dict update path so we can attach extra columns without
+                # breaking legacy tuple callers.
+                update_payload: Dict[str, Any] = {
+                    "row_index": job["_row_index"],
+                    "match_type": match_type,
+                    "recommended": rec,
+                    "h1b": h1b,
+                    "loc_ver": loc,
+                    "missing": missing,
+                    "score": final_score,
+                    "reasoning": reasoning,
+                    "calibration_delta": audit.calibration_delta,
+                    "decision_audit_json": audit.to_json(),
+                    "base_llm_score": base_score,
+                    "evidence_json": evidence_json,
+                }
+                update_payload.update(judge_fields)
+
+                deep_path = self._run_deep_job_packet(
+                    job=job,
+                    jd_text=jd_text,
+                    final_score=final_score,
+                    reasoning=reasoning,
+                    recommended_resume=rec,
+                    h1b=h1b,
+                    evidence_json=evidence_json,
+                )
+                update_payload["deep_packet"] = deep_path or ""
+                if deep_path and not deep_path.startswith("ERROR"):
+                    print(f"    📄 Deep packet: {deep_path}")
+
+                tailor_path = self._write_tailor_payload_json(
+                    job=job,
+                    jd_text=jd_text,
+                    final_score=final_score,
+                    recommended_resume=rec,
+                    missing=missing,
+                    evidence_json=evidence_json,
+                )
+                updates_by_ws[target_ws].append(update_payload)  # type: ignore
+                evaluated_match_types.append(match_type)
+                print(f"    ✅ Eval complete: {job.get('Role Title')} -> {match_type} ({final_score})")
 
             # --- PERIODIC SYNC (Every 2 jobs to show immediate progress) ---
             for ws, batch in updates_by_ws.items():
@@ -1199,5 +1639,16 @@ class JobEvaluator:
             updates_list.clear() # clear list in place
 
 if __name__ == "__main__":
+    import argparse
+
+    ap = argparse.ArgumentParser(description="Evaluate jobs from Google Sheets (legacy evaluator).")
+    ap.add_argument(
+        "--mode",
+        default="NEW",
+        choices=["NEW", "MAYBE", "NEEDS_REVIEW", "LLM_FAILED"],
+        help="NEW = Status NEW; MAYBE = re-eval Maybe rows; NEEDS_REVIEW = re-eval failed-parse rows on today's tab; LLM_FAILED = re-eval rows with LLM failure text/zero-score signals.",
+    )
+    ap.add_argument("--limit", type=int, default=None, help="Max rows to fetch (default: config evaluation limit).")
+    args = ap.parse_args()
     evaluator = JobEvaluator()
-    evaluator.evaluate_all()
+    evaluator.evaluate_all(mode=args.mode, limit=args.limit)

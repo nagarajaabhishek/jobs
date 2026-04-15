@@ -46,7 +46,9 @@ flowchart TD
 def _render_checklist() -> str:
     lines = []
     lines.append("### Preflight checklist")
-    lines.append("- `GEMINI_API_KEY` present (or evaluation provider configured)")
+    lines.append(
+        "- LLM key present for `evaluation.provider` (`OPENROUTER_API_KEY`, `GEMINI_API_KEY`, or `OPENAI_API_KEY`)"
+    )
     lines.append("- `config/credentials.json` present (Sheets)")
     lines.append("- Profile present + compiled:")
     lines.append("  - `master_context.yaml` exists")

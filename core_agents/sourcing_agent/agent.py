@@ -7,7 +7,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../../')))
 
 from jobspy import scrape_jobs
-from apps.cli.legacy.core.google_sheets_client import GoogleSheetsClient
+from apps.cli.legacy.core.google_sheets_client import GoogleSheetsClient, normalize_job_url
 from apps.cli.legacy.core.config import get_sourcing_config, get_evaluation_config
 from apps.cli.legacy.core.job_filters import (
     filter_sourcing_jobs,
@@ -21,7 +21,13 @@ from apps.cli.legacy.scrapers.remotive_scraper import RemotiveScraper
 from apps.cli.legacy.scrapers.remoteok_scraper import RemoteOKScraper
 from apps.cli.legacy.scrapers.ashby_scraper import AshbyScraper
 from apps.cli.legacy.scrapers.dice_scraper import DiceScraper
+from apps.cli.legacy.scrapers.smartrecruiters_scraper import SmartRecruitersScraper
+from apps.cli.legacy.scrapers.recruitee_scraper import RecruiteeScraper
 from apps.cli.legacy.core.llm_router import LLMRouter
+from apps.cli.legacy.core.title_fit_gate import (
+    sniffer_constraints_paragraph,
+    sniffer_role_bullet_text,
+)
 
 import pandas as pd # type: ignore
 import json
@@ -35,6 +41,21 @@ except ImportError:
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
+
+
+def _playwright_error_is_missing_browser(exc: Exception) -> bool:
+    """Detect Playwright's 'please run playwright install' / missing browser binary errors."""
+    s = str(exc).lower()
+    return (
+        "executable doesn't exist" in s
+        or "playwright install" in s
+        or "chromium_headless_shell" in s
+        or ("browser type" in s and "launch" in s and "executable" in s)
+    )
+
+
+# After the first "browser not installed" launch failure, skip Playwright for this process.
+_playwright_browser_missing_process_wide: bool = False
 
 
 class SourcingAgent:
@@ -53,9 +74,25 @@ class SourcingAgent:
         self.remoteok_scraper = RemoteOKScraper(limit=80)
         self.ashby_scraper = AshbyScraper(boards=ats.get("ashby"))
         self.dice_scraper = DiceScraper()
+        self.smartrecruiters_scraper = SmartRecruitersScraper(
+            companies=cfg.get("smartrecruiters_companies") or []
+        )
+        self.recruitee_scraper = RecruiteeScraper(
+            companies=cfg.get("recruitee_companies") or []
+        )
         self.llm = LLMRouter()
         self._last_sourcing_filter_stats: dict[str, int] = {}
-        
+        _pw_env = str(os.environ.get("DISABLE_PLAYWRIGHT_JD", "")).strip().lower()
+        self._playwright_jd_disabled = (
+            _pw_env in ("1", "true", "yes") or _playwright_browser_missing_process_wide
+        )
+        self._playwright_missing_browser_logged = False
+        if self._playwright_jd_disabled:
+            logging.info(
+                "Playwright deep JD fetch disabled via DISABLE_PLAYWRIGHT_JD=%s",
+                os.environ.get("DISABLE_PLAYWRIGHT_JD", ""),
+            )
+
         # Load Phase 1 Dense Matrix for Phase 2 Sniffing
         self.dense_matrix = {}
         matrix_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "data", "dense_master_matrix.json")
@@ -66,13 +103,28 @@ class SourcingAgent:
         except Exception as e:
             logging.warning(f"Could not load dense matrix: {e}")
 
-    def scrape_community_sources_once(self, queries=None):
+    def scrape_jobright_github_only(self, use_ai_filter: bool = False) -> int:
+        """
+        Run only Jobright GitHub README feeds (config sourcing.jobright_github_repos).
+        Returns parsed row count before dedupe/filters; 0 if repos disabled or empty.
+        """
+        jobs = self.jobright_scraper.scrape_all()
+        if not jobs:
+            print("Jobright (GitHub): no jobs returned (empty repo list or parse miss).")
+            return 0
+        print(f"Jobright (GitHub): {len(jobs)} rows parsed → filter & save...")
+        self.normalize_and_save(jobs, use_ai_filter=use_ai_filter)
+        return len(jobs)
+
+    def scrape_community_sources_once(self, queries=None, skip_jobright: bool = False):
         """
         Run Community, Jobright, Arbeitnow, ATS, Remotive, RemoteOK, Ashby once per pipeline.
+        Set skip_jobright=True when Jobright already ran (e.g. pipeline start).
         """
         queries = queries or ["Product Manager", "Project Manager", "Business Analyst"]
         all_jobs = []
         print("\n--- Scraping Community & API Sources (once) ---")
+        cfg = get_sourcing_config()
         sources = [
             ("Community", self.community_scraper, False),
             ("Jobright", self.jobright_scraper, False),
@@ -83,6 +135,13 @@ class SourcingAgent:
             ("Ashby", self.ashby_scraper, False),
             ("Dice", self.dice_scraper, True),
         ]
+        if cfg.get("run_smartrecruiters_once") and self.smartrecruiters_scraper.companies:
+            sources.append(("SmartRecruiters", self.smartrecruiters_scraper, False))
+        if cfg.get("run_recruitee_once") and self.recruitee_scraper.companies:
+            sources.append(("Recruitee", self.recruitee_scraper, False))
+        if skip_jobright:
+            sources = [s for s in sources if s[0] != "Jobright"]
+            print("(Skipping Jobright here; already run at pipeline start.)")
         for name, scraper, use_queries in sources:
             try:
                 print(f"Scraping {name}...")
@@ -293,7 +352,7 @@ class SourcingAgent:
             return jd, True, method
             
         # 2. Deep Scrape (Playwright Fallback)
-        if sync_playwright:
+        if sync_playwright and not self._playwright_jd_disabled:
             print(f"    🔄 Fast Scrape too short ({len(jd)} chars). Trying Playwright...")
             jd_deep, ok2, method2 = self._fetch_jd_playwright(url)
             if ok2 and len(jd_deep) > len(jd):
@@ -339,6 +398,8 @@ class SourcingAgent:
         """Deep scrape using headless browser for JS-heavy sites. Selector-only (no full-page fallback)."""
         if not sync_playwright:
             return "", False, "playwright:unavailable"
+        if self._playwright_jd_disabled:
+            return "", False, "playwright:disabled"
         
         try:
             with sync_playwright() as p:
@@ -373,6 +434,17 @@ class SourcingAgent:
                     print(f"    ✅ Playwright fetch successful ({len(content)} chars).")
                     return self._clean_text(content), True, "playwright:selector"
         except Exception as e:
+            if _playwright_error_is_missing_browser(e):
+                global _playwright_browser_missing_process_wide
+                _playwright_browser_missing_process_wide = True
+                self._playwright_jd_disabled = True
+                if not self._playwright_missing_browser_logged:
+                    self._playwright_missing_browser_logged = True
+                    print(
+                        "    ⚠ Playwright browsers are not installed; deep JD fetch disabled "
+                        "for the rest of this run. Install once with: playwright install"
+                    )
+                return "", False, "playwright:browser_missing"
             print(f"    ⚠ Playwright fetch failed: {e}")
         return "", False, "playwright:error"
 
@@ -403,17 +475,19 @@ class SourcingAgent:
         title = job.get("title", "")
         desc = job.get("description", "")[:800] # Slightly larger snippet for YOE search
         
-        # Extract traits from Phase 1 matrix (default safe fallback if missing)
         traits = self.dense_matrix.get("global_traits", {})
-        yoe = traits.get("years_of_experience", 3)
         clearance = traits.get("clearance", "None")
-        
+        role_families = sniffer_role_bullet_text()
+        constraints = sniffer_constraints_paragraph()
+
         system_prompt = f"""
         You are a recruitment classifier. Analyze the Job Title and Snippet against these HARD CONSTRAINTS:
-        1. User has {yoe} Years of Experience (YOE). If the job strictly demands significantly more (e.g., 5+, 7+, or Senior/Lead roles), reject it.
-        2. User Security Clearance: {clearance}. If the job strictly requires an active clearance (Secret, Top Secret, TS/SCI), reject it.
-        3. Role Relevance: Is this a Product Manager, Project Manager, Program Manager, Business Analyst, Product Owner, Scrum Master, or GTM/Strategy Operations role? If no, reject it.
-        
+        1. Seniority vs candidate: {constraints}
+           If the job strictly demands far more experience than the candidate (e.g. 5+ or 7+ years required when they have less), or is clearly a senior/staff/principal/director bar, answer NO.
+        2. User Security Clearance: {clearance}. If the job strictly requires an active clearance (Secret, Top Secret, TS/SCI), answer NO.
+        3. Role relevance: Is this role in one of these target families (or clearly adjacent same function)? {role_families}
+           If the job is an unrelated profession, answer NO.
+
         Answer ONLY YES or NO.
         """
         user_prompt = f"Title: {title}\nSnippet: {desc}"
@@ -457,10 +531,20 @@ class SourcingAgent:
             print(f"AI Sniffing complete. {len(ai_passed)} passed.")
             filtered_raw_jobs = ai_passed
 
-        # 3. Final Normalize & Tagging
+        # 3. Early URL dedupe against existing sheet rows BEFORE tag/fetch/LLM work.
+        existing_seen = set()
+        try:
+            existing_seen = self.sheets_client.get_existing_urls()
+        except Exception as e:
+            logging.warning("Could not load existing URL set for early dedupe: %s", e)
+
+        # 4. Final Normalize & Tagging
         clean_jobs = []
         for job in filtered_raw_jobs:
             if not job:
+                continue
+            canonical = normalize_job_url(job.get("url") or job.get("job_url") or "")
+            if canonical and canonical in existing_seen:
                 continue
             # Optional: Add tags to the description/metadata if needed, 
             # Or just store them in a way the evaluator can see.
@@ -497,6 +581,8 @@ class SourcingAgent:
                 "jd_fetch_reason": jd_fetch_reason,
             }
             clean_jobs.append(clean_job)
+            if canonical:
+                existing_seen.add(canonical)
 
         print_sourcing_filter_summary(
             static_stats,

@@ -38,6 +38,7 @@ def run_cycle_preflight(
     require_gemini: bool = True,
     require_google_credentials: bool = True,
     require_dense_profile: bool = True,
+    check_title_fit_when_enabled: bool = True,
 ) -> PreflightResult:
     """
     Fail-fast checks required to run one full daily cycle.
@@ -49,7 +50,26 @@ def run_cycle_preflight(
     warnings: List[str] = []
 
     # --- Environment / dependencies ---
-    if require_gemini and not os.environ.get("GEMINI_API_KEY"):
+    eval_needs_gemini = True
+    eval_needs_openrouter = False
+    try:
+        from apps.cli.legacy.core.config import get_evaluation_config
+
+        _prov = (get_evaluation_config().get("provider") or "gemini").strip().lower()
+        if _prov == "openai":
+            eval_needs_gemini = False
+        if _prov == "openrouter":
+            eval_needs_gemini = False
+            eval_needs_openrouter = True
+    except Exception:
+        pass
+
+    if require_gemini and eval_needs_openrouter and not (
+        os.environ.get("OPENROUTER_API_KEY") or ""
+    ).strip():
+        errors.append("Missing env var: OPENROUTER_API_KEY (evaluation.provider is openrouter)")
+
+    if require_gemini and eval_needs_gemini and not os.environ.get("GEMINI_API_KEY"):
         errors.append("Missing env var: GEMINI_API_KEY")
 
     # --- Google credentials ---
@@ -90,6 +110,89 @@ def run_cycle_preflight(
                     "Rebuild with: python3 apps/cli/scripts/tools/build_dense_matrix.py. "
                     f"Newer inputs: {', '.join(stale_rel)}"
                 )
+
+    # --- Title & seniority fit (must be valid before sourcing/eval when enabled) ---
+    if check_title_fit_when_enabled:
+        try:
+            from apps.cli.legacy.core.config import get_title_fit_config
+            from apps.cli.legacy.core import title_fit_gate as tft
+        except ImportError as e:
+            errors.append(f"Title fit preflight import failed: {e}")
+        else:
+            tf_cfg = get_title_fit_config()
+            if tf_cfg.get("enabled"):
+                tf_path = tft.title_fit_user_yaml_path(project_root)
+                if not os.path.isfile(tf_path):
+                    errors.append(
+                        "title_fit.enabled is true but title_fit_user.yaml is missing. "
+                        f"Expected file: {tf_path}. "
+                        "Create it (see data/profiles/title_fit_user.yaml) or set title_fit.enabled: false in config/pipeline.yaml."
+                    )
+                tracks = tft.load_all_track_definitions(project_root)
+                if not tracks:
+                    errors.append(
+                        "title_fit.enabled but no track definitions were found. "
+                        "Add YAML files under config/title_fit/tracks/ with an `id` field."
+                    )
+                if os.path.isfile(tf_path):
+                    user = tft.load_title_fit_user_config(project_root)
+                    if not user:
+                        errors.append(
+                            f"title_fit_user.yaml at {tf_path} is empty or invalid (could not load as a mapping)."
+                        )
+                    else:
+                        active = [
+                            str(x).strip()
+                            for x in (user.get("active_tracks") or [])
+                            if str(x).strip()
+                        ]
+                        if not active:
+                            errors.append(
+                                "title_fit.enabled: title_fit_user.yaml must set active_tracks to a non-empty list."
+                            )
+                        for tid in active:
+                            if tid not in tracks:
+                                errors.append(
+                                    f"title_fit: unknown track id {tid!r} in active_tracks "
+                                    "(no config/title_fit/tracks/*.yaml with this id)."
+                                )
+                if tf_cfg.get("llm_disambiguation_enabled") and require_gemini:
+                    if eval_needs_openrouter and not (
+                        os.environ.get("OPENROUTER_API_KEY") or ""
+                    ).strip():
+                        errors.append(
+                            "title_fit.llm_disambiguation_enabled is true but OPENROUTER_API_KEY is not set "
+                            "(evaluation.provider is openrouter)."
+                        )
+                    elif eval_needs_gemini and not os.environ.get("GEMINI_API_KEY"):
+                        errors.append(
+                            "title_fit.llm_disambiguation_enabled is true but GEMINI_API_KEY is not set."
+                        )
+                    elif (
+                        not eval_needs_gemini
+                        and not eval_needs_openrouter
+                        and not (os.environ.get("OPENAI_API_KEY") or "").strip()
+                    ):
+                        errors.append(
+                            "title_fit.llm_disambiguation_enabled is true but OPENAI_API_KEY is not set "
+                            "(evaluation.provider is openai)."
+                        )
+
+    # --- Learned sourcing blocks (optional) ---
+    try:
+        from apps.cli.legacy.core.config import get_sourcing_config
+
+        s_cfg = get_sourcing_config()
+        if s_cfg.get("apply_learned_title_blocks"):
+            rel = s_cfg.get("learned_title_blocks_path", "data/sourcing_learned_title_blocks.yaml")
+            lb_path = rel if os.path.isabs(rel) else os.path.join(project_root, rel)
+            if not os.path.isfile(lb_path):
+                errors.append(
+                    "sourcing.apply_learned_title_blocks is true but learned title blocks file is missing. "
+                    f"Expected: {lb_path}. Run: python3 apps/cli/scripts/tools/learn_sourcing_filters_from_sheet.py"
+                )
+    except Exception as e:
+        errors.append(f"Learned sourcing blocks preflight error: {e}")
 
     return PreflightResult(ok=(len(errors) == 0), errors=errors, warnings=warnings)
 

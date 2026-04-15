@@ -14,7 +14,7 @@ python3 scripts/diagnostics/check_jd_for_h1b.py
 ```
 
 ### 2. Run Enrichment Pass
-Run the enrichment script which specifically fetches JDs for top matches and asks Ollama for sponsorship/salary specifics.
+Run the enrichment script which specifically fetches JDs for top matches and uses the configured LLM (OpenRouter / Gemini / OpenAI via `LLMRouter` and `evaluation.provider` in `config/pipeline.yaml`) for sponsorship/salary specifics.
 // turbo
 ```bash
 python3 scripts/tools/fix_h1b.py

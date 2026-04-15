@@ -1,0 +1,66 @@
+# Product / PO / APM family — conservative entry paths when user lacks titled PM experience.
+id: product_management
+display_name: "Product management (PM, PO, APM)"
+
+# Associate job with this track if any pattern matches title (case-insensitive substring).
+# This is routing only, not “roles you can land.” Senior titles are blocked below.
+title_match:
+  - "product manager"
+  - "product owner"
+  - "product lead"
+  - "associate product"
+  - "assistant product"
+  - "junior product"
+  - "apm"
+  - "graduate product"
+  - "product management"
+  - "technical product"
+
+block_title_tokens:
+  - "senior"
+  - "sr."
+  - "sr "
+  - "staff"
+  - "principal"
+  - "director"
+  - "head of"
+  - "vp "
+  - "vice president"
+  - "executive"
+  - "distinguished"
+  - "fellow"
+  - "chief product"
+  # Group / principal PM bar — not entry or typical next step from untitled PM experience
+  - "group product manager"
+  - "group product"
+  - "principal product manager"
+  - "principal pm"
+
+# intern / internship are optional per user (see title_fit_user.yaml include_internship_entry_signals).
+prefer_title_tokens:
+  - "associate"
+  - "assistant"
+  - "junior"
+  - "apm"
+  - "graduate"
+  - "entry"
+  - "early career"
+  - "rotational"
+  - "associate product"
+  - "junior product"
+
+ambiguous_title_tokens:
+  - "lead"
+
+# If user has has_titled_pm_role: false, reject bare "product manager" / similar without a prefer token.
+strict_entry_substrings_when_untitled_pm:
+  - "product manager"
+  - "product owner"
+  - "technical product manager"
+
+# Reject JD/title that requires more years than user effective YOE + slack_years.
+min_yoe_patterns:
+  - '(?i)(?:minimum|min\.?|at least|require)\s*(\d+)\+?\s*years?'
+  - '(?i)(\d+)\+?\s*years?\s+(?:of\s+)?(?:experience|exp\.?)'
+
+slack_years_above_required: 1.0

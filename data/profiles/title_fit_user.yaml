@@ -1,0 +1,30 @@
+# Per-user title & seniority gate (multi-track). Loaded from PROFILE_DIR (default data/profiles).
+# Copy and edit for other users; point PROFILE_DIR at their folder.
+
+active_tracks:
+  - product_management
+  - business_analysis
+  - program_project_management
+
+# If omitted, falls back to dense_master_matrix.json global_traits.years_of_experience
+# effective_yoe: 2.0
+
+count_internship_toward_yoe: true
+
+# Internships vs full-time jobs: when false (default), "intern"/"internship" are NOT used as
+# entry-level prefer signals in the title gate. Set true if you are actively sourcing PM/BA/program internships.
+include_internship_entry_signals: false
+
+first_formal_role_flags:
+  # When false, product/program/project "plain" titles need entry signals (associate/junior/apm/etc.).
+  has_titled_pm_role: false
+  has_titled_ba_role: false
+  has_titled_program_project_role: false
+
+# conservative: ambiguous titles reject unless LLM disambiguation passes
+# balanced: ambiguous titles pass when LLM off (not recommended with plain PM)
+# aggressive: only hard block tokens reject
+policy: conservative
+
+extra_block_tokens: []
+extra_prefer_tokens: []

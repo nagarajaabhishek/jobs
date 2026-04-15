@@ -25,13 +25,17 @@ You MUST recommend exactly ONE of these 6 specific resumes. Do NOT use generic t
 
 Return ONLY a single valid JSON object. Do NOT include any conversational filler, markdown formatting blocks (like ```json), or notes.
 
+**CRITICAL — valid JSON:** Do not put raw line breaks inside any `"..."` string. Put all of `reasoning` on one line using ` || ` between sections (see below). To include a double quote inside a string, write `\"`. To include a newline inside a string, write `\\n` (backslash then n), not a real line break.
+
+Use this shape (replace placeholders with real values):
+
 ```json
 {
-  "location_verification": "[Confirmed: USA/Dubai/Remote] or [Invalid]",
-  "h1b_sponsorship": "[Likely/Unlikely/Unknown]",
-  "recommended_resume": "[One of: Product Manager (TPM), Product Owner (PO), Business Analyst (BA), Scrum Master (SM), Manager, Go-To Market (GTM)]",
-  "reasoning": "[Detailed skill-based analysis and rationale for matching this specific resume and score. Do NOT just mention location.]",
-  "salary_range": "[Extracted range or Not mentioned]",
+  "location_verification": "Confirmed: USA",
+  "h1b_sponsorship": "Unknown",
+  "recommended_resume": "Product Manager (TPM)",
+  "reasoning": "Role summary: ... || Fit vs profile: ... || Level and seniority strategy: ... || Compensation and signals: ... || Application angle: ... || Interview hooks (STAR+R): ...",
+  "salary_range": "Not mentioned",
   "tech_stack": ["Tech1", "Tech2"],
   "skill_gaps": ["Skill1", "Skill2"],
   "score_breakdown": {
@@ -43,19 +47,22 @@ Return ONLY a single valid JSON object. Do NOT include any conversational filler
   },
   "evidence": [
     {
-      "type": "match|gap|risk",
+      "type": "match",
       "jd_quote": "Exact phrase copied from the JD",
-      "profile_evidence": "Exact evidence from the CANDIDATE DENSE MATRIX (quote or pointer)",
+      "profile_evidence": "Exact evidence from the CANDIDATE DENSE MATRIX",
       "note": "Short explanation"
     }
   ],
-  "confidence": 0.0,
-  "jd_quality": "high|medium|low",
-  "output_quality": "high|medium|low",
-  "apply_conviction_score": [INTEGER 0-100],
-  "verdict": "[Must-Apply/Strong Match/Ambitious Match/Worth Considering/Low Priority/No]"
+  "confidence": 0.75,
+  "jd_quality": "high",
+  "output_quality": "high",
+  "apply_conviction_score": 72,
+  "verdict": "Strong Match"
 }
 ```
+
+**Reasoning structure (required)**  
+The `reasoning` value MUST be one JSON string containing all six parts in order, separated exactly by ` || ` (space-pipe-pipe-space), using the labels: `Role summary:`, `Fit vs profile:`, `Level and seniority strategy:`, `Compensation and signals:`, `Application angle:`, `Interview hooks (STAR+R):`. Each part must have JD-grounded content. If the INTERVIEW STORY BANK EXCERPT appears in the system prompt, align behavioral themes with those stories when relevant (do not contradict the matrix).
 
 **Non-hallucination requirements (hard rules)**
 - Do NOT claim the candidate has a skill/tool/metric unless it is supported by the **CANDIDATE DENSE MATRIX**.
