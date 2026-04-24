@@ -1,10 +1,12 @@
 import asyncio
 import os
 import sys
+from pathlib import Path
 from typing import Dict
 
 # Ensure project root is in path
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../../')))
+_REPO_ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(_REPO_ROOT))
 
 from src.agents.apply_agent import ApplyAgent # type: ignore
 
@@ -26,13 +28,15 @@ async def dry_run_apply():
         "portfolio_url": "https://abhisheknagaraja.com"
     }
     
-    resume_path = os.path.abspath("data/resumes/master_resume.pdf")
-    
-    # Create the dummy resume if it doesn't exist for the test
-    os.makedirs(os.path.dirname(resume_path), exist_ok=True)
-    if not os.path.exists(resume_path):
-        with open(resume_path, "w") as f:
-            f.write("Dummy Resume Content for AI Agent testing.")
+    resume_path = str(
+        _REPO_ROOT
+        / "core_agents/resume_agent/Resume_Building/Abhishek/Master/Abhishek_Nagaraja_Master_Resume.pdf"
+    )
+    if not os.path.isfile(resume_path):
+        raise FileNotFoundError(
+            f"Master resume not found at {resume_path}. "
+            "Build it from the .tex in that folder or see data/resumes/README.md."
+        )
 
     print("\n--- 🤖 Starting ApplyAgent Dry Run ---")
     print("Goal: Observe the browser navigating and identifying form fields.")

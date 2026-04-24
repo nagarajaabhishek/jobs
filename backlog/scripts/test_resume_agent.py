@@ -28,10 +28,11 @@ async def test_tailoring():
     - Strong background in Agile and Scrum methodologies.
     """
     
-    output_tex = "data/resumes/test_tailored_resume.tex"
-    
-    # Ensure data/resumes directory exists
-    os.makedirs("data/resumes", exist_ok=True)
+    output_tex = os.path.join(
+        project_root,
+        "core_agents/resume_agent/Resume_Building/Generated/test_tailored_resume.tex",
+    )
+    os.makedirs(os.path.dirname(output_tex), exist_ok=True)
     
     print("🚀 Starting Resume Tailoring Test...")
     api_key = os.getenv("GEMINI_API_KEY")

@@ -1,5 +1,6 @@
 import os
 import sys
+from pathlib import Path
 import asyncio
 import logging
 from typing import Optional
@@ -108,8 +109,11 @@ if __name__ == "__main__":
         "portfolio_url": "https://abhisheknagaraja.com"
     }
     
-    # This is a prototype - in a real run, you'd provide the actual resume path
-    resume = "/Users/abhisheknagaraja/Documents/Job_Automation/data/resumes/master_resume.pdf"
+    _repo_root = Path(__file__).resolve().parents[2]
+    resume = str(
+        _repo_root
+        / "core_agents/resume_agent/Resume_Building/Abhishek/Master/Abhishek_Nagaraja_Master_Resume.pdf"
+    )
     
     # agent = ApplyAgent()
     # asyncio.run(agent.apply_to_job("https://example-job-board.com/apply/123", resume, details))

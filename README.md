@@ -69,7 +69,7 @@ graph TD
 - `apps/cli/legacy/prompts/`: LLM system prompts.
 - `apps/cli/scripts/`: Utility scripts categorized into `diagnostics/`, `tools/`, and `legacy/`.
 - `config/`: Credentials, `pipeline.yaml`, and local JD cache.
-- `data/`: Profiles, Master Context, and harvested insights.
+- `data/`: Profiles, Master Context, and harvested insights. **Resume PDFs/LaTeX** are not duplicated here; they live under `core_agents/resume_agent/Resume_Building/Abhishek/` (see [data/resumes/README.md](data/resumes/README.md)).
 - `apps/api/`: FastAPI backend for the ops dashboard ([apps/api/README.md](apps/api/README.md)); reads Google Sheets like the CLI.
 - `apps/ops_dashboard/`: **Single-user ops UI** — jobs to apply, scores, resume links, tailored files ([apps/ops_dashboard/README.md](apps/ops_dashboard/README.md)).
 

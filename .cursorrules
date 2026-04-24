@@ -12,9 +12,10 @@ These rules govern the behavior of the AI agent and the execution of the pipelin
 
 ## 📁 File Organization
 5.  **Clean Workspace**: Keep the root directory clear of diagnostic or temporary scripts. All new utilities must be placed in the `scripts/` hierarchy.
-6.  **SOP Adherence**: Follow the Standard Operating Procedures in `.agent/workflows/` for all maintenance and debugging tasks.
+6.  **Resume assets**: Canonical LaTeX/PDF resumes for Abhishek live under `core_agents/resume_agent/Resume_Building/Abhishek/<RoleName>/`. Do not maintain a parallel copy under `data/resumes/` (that folder is a pointer only; see `data/resumes/README.md`).
+7.  **SOP Adherence**: Follow the Standard Operating Procedures in `.agent/workflows/` for all maintenance and debugging tasks.
 
 ## 🔍 Accuracy
-7.  **Score Calibration**: Evaluations must use the structured 0-100 Conviction Score. 90-100 = 🔥 Auto-Apply, 70-89 = ✅ Strong Match.
-8.  **Mandatory Data Pillars**: Every evaluation MUST populate **Reasoning, H1B Sponsorship, Recommended Resume, and Skill Gaps**. These are codified code-level requirements in the mapping layer.
-9.  **H1B Transparency**: Explicitly flag sponsorship requirements in the `H1B Sponsorship` column to avoid wasted application effort.
+8.  **Score Calibration**: Evaluations must use the structured 0-100 Conviction Score. 90-100 = 🔥 Auto-Apply, 70-89 = ✅ Strong Match.
+9.  **Mandatory Data Pillars**: Every evaluation MUST populate **Reasoning, H1B Sponsorship, Recommended Resume, and Skill Gaps**. These are codified code-level requirements in the mapping layer.
+10. **H1B Transparency**: Explicitly flag sponsorship requirements in the `H1B Sponsorship` column to avoid wasted application effort.

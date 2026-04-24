@@ -4,7 +4,9 @@ export default function Resume() {
       <h1 className="app-page-title">Resume & tailor</h1>
       <p className="app-page-lead">
         High-conviction pipeline tailoring and the <strong>Manual_JD_Tailor</strong> flow: JD fetch,
-        TailorAgent QA loop, LaTeX/PDF paths on disk, sheet status columns.
+        TailorAgent QA loop, LaTeX/PDF paths on disk, sheet status columns. Canonical resume files live
+        under <span className="app-code">core_agents/resume_agent/Resume_Building/Abhishek/</span> (see{' '}
+        <span className="app-code">data/resumes/README.md</span> in the repo).
       </p>
       <div className="app-card">
         <h3>
