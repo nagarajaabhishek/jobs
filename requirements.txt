@@ -9,3 +9,5 @@ openai
 requests
 beautifulsoup4
 pytest
+fastapi
+uvicorn[standard]

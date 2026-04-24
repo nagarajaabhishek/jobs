@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 import re
 import sys
@@ -49,8 +50,12 @@ _FALLBACK_JOB_KEYS = (
     "tags",
 )
 
+logger = logging.getLogger(__name__)
+
 # Dedicated tab in the same spreadsheet: paste job URLs for JD fetch + resume tailoring (optional workflow).
 DEFAULT_MANUAL_JD_TAILOR_TAB = "Manual_JD_Tailor"
+# Last column on Manual_JD_Tailor: absolute path to generated PDF (or .tex if PDF missing).
+MANUAL_TAILOR_RESUME_COL = "Resume (PDF)"
 
 # Pull http(s) or www.… from a cell; Sheets hyperlinks sometimes store only visible title in FORMATTED_VALUE.
 _MANUAL_TAILOR_URL_RE = re.compile(r"(https?://[^\s\)\]>'\"]+|www\.[^\s\)\]>'\"]+)", re.I)
@@ -219,12 +224,13 @@ class GoogleSheetsClient:
         try:
             ws = spreadsheet.worksheet(title)
             self._ensure_recommended_resume_column(ws)
+            self._ensure_resume_pdf_column_last(ws)
             return ws
         except gspread.exceptions.WorksheetNotFound:
             ws = spreadsheet.add_worksheet(
                 title=title,
                 rows=DEFAULT_NEW_WORKSHEET_ROWS,
-                cols=8,
+                cols=14,
             )
             headers = [
                 "Status",
@@ -232,8 +238,13 @@ class GoogleSheetsClient:
                 "Recommended Resume",
                 "Notes",
                 "Last processed",
-                "Tailored YAML",
                 "Error",
+                "Validation Verdict",
+                "Validation Reason",
+                "Tailored Score",
+                "Generic Score",
+                "Use Resume",
+                MANUAL_TAILOR_RESUME_COL,
             ]
             ws.append_row(headers)
             last = rowcol_to_a1(1, len(headers))
@@ -277,6 +288,38 @@ class GoogleSheetsClient:
             "[Manual_JD_Tailor] Added column 'Recommended Resume' at the end of row 1. "
             "Enter your suggested variant there (e.g. TPM vs PO from your other tool). "
             "Job links stay in column B."
+        )
+
+    def _ensure_resume_pdf_column_last(self, ws) -> None:
+        """
+        Ensure a rightmost 'Resume (PDF)' column exists (output artifact path).
+        Legacy tabs may still have 'Tailored YAML'; we append Resume (PDF) at the end if missing.
+        """
+        row1 = self._with_retries(lambda: ws.row_values(1), op_name="manual_tailor_header_resume") or []
+        labels = [str(x).strip() for x in row1 if str(x).strip()]
+        low = [x.lower() for x in labels]
+        if MANUAL_TAILOR_RESUME_COL.lower() in low:
+            return
+        if not labels:
+            return
+        new_col = len(row1) + 1
+        if new_col > ws.col_count:
+            self._with_retries(
+                lambda: ws.resize(rows=max(ws.row_count, 100), cols=new_col),
+                op_name="manual_tailor_resize_resume_col",
+            )
+        self._with_retries(
+            lambda: ws.update_cell(1, new_col, MANUAL_TAILOR_RESUME_COL),
+            op_name="manual_tailor_add_resume_col",
+        )
+        a1 = rowcol_to_a1(1, new_col)
+        self._with_retries(
+            lambda: ws.format(a1, {"textFormat": {"bold": True}}),
+            op_name="manual_tailor_format_resume_header",
+        )
+        print(
+            f"[Manual_JD_Tailor] Added final column '{MANUAL_TAILOR_RESUME_COL}' for PDF path. "
+            "Older 'Tailored YAML' column (if present) is unused by the tailor script."
         )
 
     def read_manual_jd_tailor_urls(self, limit: int = 500) -> list[str]:
@@ -354,7 +397,7 @@ class GoogleSheetsClient:
         *,
         url: str,
         status: str,
-        tailored_yaml: str = "",
+        resume_path: str = "",
         error: str = "",
         last_processed: str | None = None,
         validation_verdict: str = "",
@@ -364,7 +407,8 @@ class GoogleSheetsClient:
         use_resume: str = "",
     ) -> bool:
         """
-        Update one Manual_JD_Tailor row by URL with status, timestamps, output path, and error text.
+        Update one Manual_JD_Tailor row by URL with status, timestamps, resume output path, and error text.
+        Resume path is written to the last column (MANUAL_TAILOR_RESUME_COL), typically an absolute PDF path.
         Returns True if a matching URL row was found and updated.
         """
         if not self.client:
@@ -377,13 +421,13 @@ class GoogleSheetsClient:
         status_col = self._get_or_create_col_index(ws, "Status", headers)
         link_col = self._get_or_create_col_index(ws, "Job Link", headers)
         last_col = self._get_or_create_col_index(ws, "Last processed", headers)
-        yaml_col = self._get_or_create_col_index(ws, "Tailored YAML", headers)
         err_col = self._get_or_create_col_index(ws, "Error", headers)
         vv_col = self._get_or_create_col_index(ws, "Validation Verdict", headers)
         vr_col = self._get_or_create_col_index(ws, "Validation Reason", headers)
         ts_col = self._get_or_create_col_index(ws, "Tailored Score", headers)
         gs_col = self._get_or_create_col_index(ws, "Generic Score", headers)
         ur_col = self._get_or_create_col_index(ws, "Use Resume", headers)
+        resume_col = self._get_or_create_col_index(ws, MANUAL_TAILOR_RESUME_COL, headers)
 
         values = self._with_retries(lambda: ws.get_all_values(), op_name="manual_tailor_get_all_values") or []
         if len(values) <= 1:
@@ -408,15 +452,75 @@ class GoogleSheetsClient:
         cells = [
             gspread.Cell(row_idx, status_col, status or ""),
             gspread.Cell(row_idx, last_col, now),
-            gspread.Cell(row_idx, yaml_col, tailored_yaml or ""),
             gspread.Cell(row_idx, err_col, error or ""),
             gspread.Cell(row_idx, vv_col, validation_verdict or ""),
             gspread.Cell(row_idx, vr_col, validation_reason or ""),
             gspread.Cell(row_idx, ts_col, tailored_score or ""),
             gspread.Cell(row_idx, gs_col, generic_score or ""),
             gspread.Cell(row_idx, ur_col, use_resume or ""),
+            gspread.Cell(row_idx, resume_col, resume_path or ""),
         ]
         self._with_retries(lambda: ws.update_cells(cells), op_name="manual_tailor_update_result")
+        return True
+
+    def update_manual_jd_tailor_validation_only(
+        self,
+        *,
+        url: str,
+        validation_verdict: str,
+        validation_reason: str = "",
+        tailored_score: str = "",
+        generic_score: str = "",
+        use_resume: str = "",
+        last_processed: str | None = None,
+    ) -> bool:
+        """
+        Update only validation-related columns for a Manual_JD_Tailor row (does not touch Status / Resume / Error).
+        """
+        if not self.client:
+            self.connect()
+        ws = self._open_workbook().worksheet(self._manual_jd_tailor_tab_title())
+        headers = [h.strip() for h in (self._with_retries(lambda: ws.row_values(1), op_name="manual_tailor_headers_v") or [])]
+        if not headers:
+            return False
+
+        link_col = self._get_or_create_col_index(ws, "Job Link", headers)
+        last_col = self._get_or_create_col_index(ws, "Last processed", headers)
+        vv_col = self._get_or_create_col_index(ws, "Validation Verdict", headers)
+        vr_col = self._get_or_create_col_index(ws, "Validation Reason", headers)
+        ts_col = self._get_or_create_col_index(ws, "Tailored Score", headers)
+        gs_col = self._get_or_create_col_index(ws, "Generic Score", headers)
+        ur_col = self._get_or_create_col_index(ws, "Use Resume", headers)
+
+        values = self._with_retries(lambda: ws.get_all_values(), op_name="manual_tailor_get_all_values_v") or []
+        if len(values) <= 1:
+            return False
+
+        target = normalize_job_url(url)
+        if not target:
+            return False
+
+        row_idx = -1
+        for i, row in enumerate(values[1:], start=2):
+            row_s = [str(c) for c in row]
+            row_url = self._url_for_manual_data_row(row_s, link_col - 1)
+            if normalize_job_url(row_url) == target:
+                row_idx = i
+                break
+
+        if row_idx < 0:
+            return False
+
+        now = last_processed or datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        cells = [
+            gspread.Cell(row_idx, last_col, now),
+            gspread.Cell(row_idx, vv_col, validation_verdict or ""),
+            gspread.Cell(row_idx, vr_col, validation_reason or ""),
+            gspread.Cell(row_idx, ts_col, tailored_score or ""),
+            gspread.Cell(row_idx, gs_col, generic_score or ""),
+            gspread.Cell(row_idx, ur_col, use_resume or ""),
+        ]
+        self._with_retries(lambda: ws.update_cells(cells), op_name="manual_tailor_update_validation")
         return True
 
     def _manual_tailor_column_indices(self, header_row: list) -> tuple[int, int]:
@@ -757,6 +861,8 @@ class GoogleSheetsClient:
 
             new_rows = []
             jd_cache_updates = {}
+            pending_verified = 0
+            pending_unverified = 0
             for job in jobs_list or []:
                 canonical = normalize_job_url(job.get("url") or "")
                 if not canonical or canonical in seen:
@@ -786,6 +892,10 @@ class GoogleSheetsClient:
                 row[16] = jd_fetch_reason
 
                 new_rows.append(row)
+                if jd_verified:
+                    pending_verified += 1
+                else:
+                    pending_unverified += 1
                 pending_jobs.append(self._job_dict_for_fallback(job))
                 seen.add(canonical)
 
@@ -801,6 +911,13 @@ class GoogleSheetsClient:
             worksheet = self.sheet
             if worksheet is None:
                 raise RuntimeError("Worksheet unavailable; cannot append rows.")
+            logger.info(
+                "add_jobs: appending %s rows (jd_verified=Y: %s, jd_verified=N/NO_JD: %s) on tab_date=%s",
+                len(new_rows),
+                pending_verified,
+                pending_unverified,
+                tab_date,
+            )
             if jd_cache_updates:
                 cache = self._load_jd_cache()
                 cache.update(jd_cache_updates)

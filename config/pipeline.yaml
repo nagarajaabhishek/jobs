@@ -116,6 +116,8 @@ evaluation:
   tailor_max_qa_attempts: 10
   # Stop early when the same QA error signature repeats this many times without deterministic improvement.
   tailor_stagnation_limit: 3
+  # How often to push evaluated rows to Google Sheets during evaluate_all (2–10; SOP: 2–5 for visibility).
+  sheet_sync_every_n_evals: 3
   # Gemini only: first HTTP 429 → hand off to fallback_provider (OpenAI) instead of long retries.
   gemini_429_fast_openai_fallback: true
   # Optional end-of-run cleanup passes.
@@ -143,6 +145,7 @@ digest:
   output_dir: "data/digests"
 
 # End-of-run hooks (digest / feedback ingest). Automation hooks stay off by default.
+# Validation checklist: docs/CYCLE_HOOKS.md
 cycle:
   run_digest_after_pipeline: true
   run_feedback_ingest: false

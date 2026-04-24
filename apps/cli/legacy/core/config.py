@@ -88,6 +88,8 @@ _default = {
         "export_tailor_json": False,
         # Resume tailoring candidate threshold (used by pipeline tailor phase + tailor payload export).
         "tailor_min_score": 90,
+        # Flush evaluated rows to Sheets after this many completed jobs (2–10; project SOP recommends 2–5).
+        "sheet_sync_every_n_evals": 3,
         # On Gemini HTTP 429, skip long Gemini retries and use fallback_provider (e.g. OpenAI) if configured.
         "gemini_429_fast_openai_fallback": True,
         # On OpenRouter primary HTTP 429, skip retries and try openrouter_fallback_model (if configured).

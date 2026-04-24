@@ -147,6 +147,11 @@ def _preflight_checks(cfg):
     res = run_cycle_preflight(project_root=PROJECT_ROOT)
     if not res.ok:
         raise RuntimeError("Preflight failed:\n- " + "\n- ".join(res.errors))
+    logger.info(
+        "Preflight OK (profiles + credentials + evaluation provider prerequisites). "
+        "warnings=%s",
+        len(res.warnings),
+    )
 
 
 def _count_eval_backlog(client, sample_limit: int = 5000):

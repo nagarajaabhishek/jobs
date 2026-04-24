@@ -26,6 +26,8 @@ TPM_OVERLAY_PATH = os.path.join(RESUME_AGENT_BASE_DIR, "overlays", "tpm_product.
 DEFAULT_ROLE_YAML_PATH = os.path.join(RESUME_AGENT_BASE_DIR, "data", "Abhishek", "role_product_ops.yaml")
 INTERVIEW_STORY_BANK_MAX_CHARS = 4500
 
+logger = logging.getLogger(__name__)
+
 # Fallback when config not used
 BATCH_EVAL_SIZE_DEFAULT = 3
 SHEET_BATCH_SIZE_DEFAULT = 25
@@ -931,6 +933,160 @@ class JobEvaluator:
             "ats_critical_gaps": ", ".join(sorted(set(ats_crit_list))) or ats_critical_csv,
         }
 
+    def judge_resume_yaml_against_jd(self, jd_text: str, resume_yaml_text: str) -> Dict[str, Any]:
+        """
+        Content judge + ATS overlay + pillars/workflow — same framework as _run_role_judge_and_ats,
+        but for any resume YAML string vs JD (no TPM/Product gate). Used for tailored vs generic comparison.
+        """
+        jd_text = (jd_text or "").strip()
+        resume_yaml_text = (resume_yaml_text or "").strip()
+        if not jd_text or not resume_yaml_text:
+            return {
+                "role_judge_score": 0,
+                "role_judge_verdict": "",
+                "role_judge_notes": "Missing JD or resume YAML.",
+                "ats_match_pct": 0,
+                "ats_critical_gaps": "",
+                "judge_engine": "SKIP",
+            }
+
+        if len(resume_yaml_text) > 60000:
+            resume_yaml_text = resume_yaml_text[:60000] + "\n[...truncated for judge prompt]"
+
+        overlay = self._load_tpm_overlay()
+        if not isinstance(overlay, dict):
+            overlay = {}
+        pillars_md = self._load_content_pillars_md()
+        workflow_md = self._load_judge_workflow_md()
+        if not pillars_md:
+            pillars_md = (
+                "Evaluate strategic fit, impact, skill depth, and JD alignment using senior hiring-bar judgment."
+            )
+
+        ats_match_pct, ats_critical_csv, ats_debug = self._compute_ats_coverage(
+            jd_text, resume_yaml_text, overlay
+        )
+
+        jd_clip = jd_text[:14000]
+        if len(jd_text) > 14000:
+            jd_clip += "\n[...JD truncated for judge prompt]"
+
+        system_prompt = (
+            "You are a senior hiring-bar resume judge for Product / Program / TPM-adjacent roles.\n"
+            "You must:\n"
+            "- Evaluate the resume content against the hiring bar using the provided pillars.\n"
+            "- Consider the target job description and overlay role expectations.\n"
+            "- Use the static ATS stats as hints, but do not fabricate experience.\n"
+            "- Return ONLY a JSON object with the specified schema.\n\n"
+            "CONTENT_JUDGMENT_PILLARS_MD:\n"
+            f"{pillars_md}\n\n"
+            "CONTENT_JUDGE_WORKFLOW_MD:\n"
+            f"{workflow_md}\n"
+        )
+
+        user_prompt = (
+            "### TARGET JOB DESCRIPTION\n"
+            f"{jd_clip}\n\n"
+            "### RESUME ROLE YAML (SOURCE OF TRUTH)\n"
+            f"{resume_yaml_text}\n\n"
+            "### ROLE OVERLAY (TPM/Product keyword hints)\n"
+            f"{json.dumps(overlay, ensure_ascii=False, indent=2)}\n\n"
+            "### STATIC ATS STATS\n"
+            f"match_pct: {ats_match_pct}\n"
+            f"critical_missing: {ats_critical_csv or 'None'}\n"
+            f"debug: {json.dumps(ats_debug, ensure_ascii=False)}\n\n"
+            "INSTRUCTIONS:\n"
+            "Return ONLY a JSON object with this schema:\n"
+            "{\n"
+            '  \"role_judge_score\": int,              // 0-100\n'
+            '  \"role_judge_verdict\": str,            // e.g., \"Ready\", \"Needs more scope\"\n'
+            '  \"role_judge_notes\": str,              // 1-2 line human summary\n'
+            '  \"pillar_ratings\": {                   // optional per-pillar scores 0-3\n'
+            '      \"Strategic Experience Argument\": int,\n'
+            '      \"Recruiter Empathy\": int,\n'
+            '      \"Hard Skill Depth\": int,\n'
+            '      \"Tool & Application Mastery\": int,\n'
+            '      \"Methodological Rigor\": int,\n'
+            '      \"Soft Skill Integration\": int,\n'
+            '      \"Keyword Naturalism\": int,\n'
+            '      \"AI-Forwardness\": int\n'
+            "  },\n"
+            '  \"improvement_suggestions\": [str],     // up to 3 concise bullet suggestions\n'
+            '  \"ats_match_pct\": int,                 // echo/refine static match % (0-100)\n'
+            '  \"ats_critical_gaps\": [str],           // list of critical missing terms\n'
+            '  \"ats_notes\": str                      // 1 short sentence about ATS alignment\n'
+            "}\n"
+            "Do not include markdown code fences, commentary, or any extra text."
+        )
+
+        eval_cfg = get_evaluation_config()
+        eval_model = eval_cfg.get("gemini_model")
+        raw, engine_used = self.llm.generate_content(
+            system_prompt,
+            user_prompt,
+            formatting_instruction=self.formatting_instruction,
+            model=eval_model,
+        )
+        if engine_used == "FAILED" or not raw:
+            return {
+                "role_judge_score": 0,
+                "role_judge_verdict": "",
+                "role_judge_notes": "Judge failed (LLM error).",
+                "ats_match_pct": ats_match_pct,
+                "ats_critical_gaps": ats_critical_csv,
+                "judge_engine": "FAILED",
+            }
+
+        try:
+            text = raw.strip()
+            start = text.find("{")
+            end = text.rfind("}")
+            if start == -1 or end == -1 or end <= start:
+                raise ValueError("No JSON object found in judge output.")
+            obj = json.loads(text[start : end + 1])
+        except Exception as e:
+            logging.warning(f"judge_resume_yaml_against_jd parse failed: {e}")
+            return {
+                "role_judge_score": 0,
+                "role_judge_verdict": "",
+                "role_judge_notes": "Judge failed (parse error).",
+                "ats_match_pct": ats_match_pct,
+                "ats_critical_gaps": ats_critical_csv,
+                "judge_engine": "PARSE_FAIL",
+            }
+
+        def _to_int_safe(v: Any, default: int = 0) -> int:
+            try:
+                if v is None or v == "":
+                    return default
+                if isinstance(v, bool):
+                    return default
+                return int(str(v).strip())
+            except Exception:
+                return default
+
+        role_judge_score = _to_int_safe(obj.get("role_judge_score"), default=0)
+        role_judge_score = max(0, min(100, role_judge_score))
+        ats_pct_out = _to_int_safe(obj.get("ats_match_pct"), default=ats_match_pct)
+        ats_pct_out = max(0, min(100, ats_pct_out))
+
+        ats_crit = obj.get("ats_critical_gaps") or []
+        if isinstance(ats_crit, str):
+            ats_crit_list = [s.strip() for s in ats_crit.split(",") if s.strip()]
+        elif isinstance(ats_crit, list):
+            ats_crit_list = [str(s).strip() for s in ats_crit if str(s).strip()]
+        else:
+            ats_crit_list = []
+
+        return {
+            "role_judge_score": role_judge_score,
+            "role_judge_verdict": str(obj.get("role_judge_verdict") or "").strip(),
+            "role_judge_notes": str(obj.get("role_judge_notes") or "").strip(),
+            "ats_match_pct": ats_pct_out,
+            "ats_critical_gaps": ", ".join(sorted(set(ats_crit_list))) or ats_critical_csv,
+            "judge_engine": "OK",
+        }
+
     def count_skill_overlap(self, jd_text, keywords=None):
         """Count how many profile skill keywords appear in the JD. Used to nudge away from Maybe when >= 5."""
         keywords = keywords or self.get_profile_skill_keywords()
@@ -1121,10 +1277,22 @@ class JobEvaluator:
             gray_min, gray_max = gray_max, gray_min
         eval_model = eval_cfg.get("gemini_model")
         tailor_min = int(eval_cfg.get("tailor_min_score", 90))
+        sheet_sync_every = int(eval_cfg.get("sheet_sync_every_n_evals", 3) or 3)
+        sheet_sync_every = max(1, min(10, sheet_sync_every))
 
         cid = cycle_id or os.environ.get("PIPELINE_CYCLE_ID", "")
 
         print(f"Evaluation backend: {self.llm.provider}")
+        logger.info(
+            "evaluate_all: mode=%s batch_eval_size=%s sheet_sync_every_n_evals=%s "
+            "needs_review_sweep=%s llm_failed_sweep=%s enforce_clean_sheet=%s",
+            mode,
+            batch_size,
+            sheet_sync_every,
+            bool(eval_cfg.get("run_needs_review_sweep")),
+            bool(eval_cfg.get("run_llm_failed_sweep")),
+            bool(eval_cfg.get("enforce_clean_sheet_before_finish")),
+        )
 
         if mode == "MAYBE":
             print("Fetching 'Maybe' jobs for re-evaluation...")
@@ -1583,9 +1751,9 @@ class JobEvaluator:
                 evaluated_match_types.append(match_type)
                 print(f"    ✅ Eval complete: {job.get('Role Title')} -> {match_type} ({final_score})")
 
-            # --- PERIODIC SYNC (Every 2 jobs to show immediate progress) ---
+            # --- PERIODIC SYNC (configurable; default aligns with 2–5 job visibility SOP) ---
             for ws, batch in updates_by_ws.items():
-                if len(batch) >= 2:
+                if len(batch) >= sheet_sync_every:
                     print(f"\n  -> Periodic Sync: Updating {len(batch)} jobs in '{ws.title}'...") # type: ignore
                     self.sheets_client.update_evaluated_jobs(ws, batch)
                     batch.clear() 
