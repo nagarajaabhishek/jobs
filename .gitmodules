@@ -1,0 +1,3 @@
+[submodule "core_agents/resume_agent"]
+	path = core_agents/resume_agent
+	url = https://github.com/nagarajaabhishek/resume_agent.git

@@ -33,5 +33,13 @@ data/pipeline_outbox.db-shm
 *.swp
 *.swo
 
+# Node (Vite apps)
+**/node_modules/
+**/dist/
+
 # OS
 .DS_Store
+
+# Local worktrees / scratch (not part of the product tree)
+.claude/
+Daily_Jobs/
