@@ -1,0 +1,31 @@
+Job Title: Program Manager / Project Manager
+
+About the Role:
+We are looking for a Program Manager to lead complex, cross-functional programs from ideation to delivery. You will drive operational efficiency, manage stakeholder relationships, and ensure consistent execution across multiple concurrent workstreams.
+
+Responsibilities:
+- Own end-to-end program lifecycle management: scope definition, planning, execution, monitoring, and closure.
+- Develop and maintain detailed project plans, roadmaps, risk registers, and status reports.
+- Lead cross-functional teams across engineering, product, marketing, and operations to deliver on program objectives.
+- Identify critical path dependencies, mitigate schedule variance risks, and drive issue resolution.
+- Define and track KPIs, OKRs, and program health metrics using Power BI and Google Analytics dashboards.
+- Architect and deploy SOPs, process documentation, and operational playbooks to improve team efficiency.
+- Manage stakeholder communication, facilitate executive briefings, and present data-driven insights to leadership.
+- Drive business development, partnership negotiations, and sponsorship proposals to secure program funding.
+- Apply Agile and Lean methodologies to improve sprint velocity and remove systemic process bottlenecks.
+- Conduct retrospectives, root cause analysis, and implement continuous improvement initiatives.
+- Coordinate UAT, feature releases, and change management across technical and business teams.
+- Support GTM strategy execution including launch planning, vendor management, and go-live coordination.
+
+Requirements:
+- Bachelor's or Master's degree in Engineering Management, Computer Science, Business, or related field.
+- 2+ years of experience in program management, project management, or operations.
+- Proficiency in Agile, Scrum, Waterfall, Kanban, and SAFe methodologies.
+- Hands-on experience with Jira, Asana, Notion, Microsoft Project, and project tracking tools.
+- Strong skills in risk management, stakeholder communication, and cross-functional leadership.
+- Experience with Power BI, Google Analytics, Excel, and data-driven decision making.
+- Familiarity with Python, SQL, REST APIs, and technical program delivery.
+- Experience with SOP design, process improvement, and operational efficiency programs.
+- Strong business development, partnership, and sponsorship management experience.
+- PMP, CAPM, or Google Project Management certification is a plus.
+- Lean Six Sigma Green Belt (LSSGB) or equivalent is highly valued.

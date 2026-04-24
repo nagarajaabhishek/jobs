@@ -1,0 +1,31 @@
+Job Title: Scrum Master
+
+About the Role:
+We are hiring an entry-level to associate Scrum Master to facilitate Agile ceremonies, remove impediments, and coach teams toward high-performance delivery. You will serve as a servant leader committed to continuous improvement and team velocity.
+
+Responsibilities:
+- Facilitate all Scrum ceremonies: sprint planning, daily stand-ups, sprint reviews, and retrospectives.
+- Remove impediments and protect the development team from external distractions and scope creep.
+- Coach team members on Agile values, Scrum principles, and continuous improvement practices.
+- Maintain and update the Jira sprint board, ensuring 100% visibility of work in progress.
+- Track and report sprint velocity, burndown charts, and team capacity metrics to stakeholders.
+- Support the Product Owner in backlog refinement, writing acceptance criteria, and user story mapping.
+- Facilitate conflict resolution and foster a culture of psychological safety and collaboration.
+- Identify and implement process improvements through retrospective-driven action items.
+- Apply WSJF and MoSCoW prioritization frameworks to help the team maximize value delivery.
+- Leverage AI tools and generative AI for automated documentation and backlog management.
+- Build and maintain stakeholder relationships through transparent communication and reporting.
+- Drive Definition of Ready (DoR) and Definition of Done (DoD) adoption across the team.
+
+Requirements:
+- Certified Scrum Master (CSM) or Certified Scrum Product Owner (CSPO) required.
+- 1-2 years of experience as a Scrum Master, Agile Coach, or delivery analyst.
+- Strong knowledge of Scrum, Kanban, SAFe, and Lean frameworks.
+- Hands-on experience with Jira, Linear, Confluence, Miro, and collaboration tools.
+- Excellent facilitation, servant leadership, and impediment removal skills.
+- Experience with burndown charts, velocity tracking, and sprint metrics.
+- Familiarity with SDLC, CI/CD, and software development processes.
+- Strong communication, stakeholder management, and conflict resolution skills.
+- Experience using AI tools (ChatGPT, Gemini) for documentation and sprint support.
+- Background in Computer Science, Engineering, or related technical field preferred.
+- Google Project Management or Agile certification is a plus.

@@ -1,0 +1,30 @@
+Job Title: Product Owner
+
+About the Role:
+We are seeking a certified Product Owner to drive agile product delivery and own the product backlog for a fast-growing SaaS platform. You will act as the bridge between business stakeholders and engineering teams, ensuring the team always has a groomed, high-priority backlog ready for execution.
+
+Responsibilities:
+- Own and manage the product backlog, writing high-quality user stories, epics, and acceptance criteria.
+- Facilitate sprint planning, daily stand-ups, sprint reviews, and retrospectives as a servant leader.
+- Prioritize features using RICE, MoSCoW, and WSJF frameworks aligned with business goals.
+- Collaborate with stakeholders to gather requirements, define product vision, and communicate the roadmap.
+- Conduct user research, A/B testing, and customer interviews to validate product decisions.
+- Enforce Definition of Ready (DoR) and Definition of Done (DoD) to ensure quality delivery.
+- Track and report sprint velocity, burndown charts, and team KPIs through Jira dashboards.
+- Manage UAT sessions and coordinate sign-offs between QA, Dev, and business teams.
+- Leverage AI tools and automation to streamline product discovery and backlog refinement.
+- Define GTM strategy for product launches and align internal teams on release plans.
+- Drive product-led growth (PLG) initiatives and monitor NPS, funnel metrics, and cohort analysis.
+
+Requirements:
+- Certified Scrum Product Owner (CSPO) or equivalent certification required.
+- 2+ years of experience as a Product Owner or Product Manager in an Agile environment.
+- Strong proficiency in Jira, Confluence, Linear, and backlog management tools.
+- Experience with user story mapping, sprint planning, and backlog grooming.
+- Familiarity with cloud platforms (AWS, GCP), REST APIs, and SDLC processes.
+- Proficiency with analytics tools: Power BI, Amplitude, Google Analytics.
+- Experience with AI/ML product strategy, LLMs, prompt engineering, and agentic workflows.
+- Strong stakeholder communication, conflict resolution, and servant leadership skills.
+- Knowledge of Lean, Kanban, SAFe frameworks.
+- Experience with PRDs, BRDs, and functional specifications.
+- Background in Computer Science, Engineering Management, or related field preferred.

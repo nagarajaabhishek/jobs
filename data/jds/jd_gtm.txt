@@ -1,0 +1,31 @@
+Job Title: Go-To-Market (GTM) Manager / Technical Product Marketing Manager
+
+About the Role:
+We are looking for a GTM Manager to drive product launches, community-led growth, and developer adoption for our AI-powered platform. You will own the end-to-end go-to-market strategy, bridging the gap between engineering innovation and commercial adoption.
+
+Responsibilities:
+- Define and execute go-to-market (GTM) strategy for new product launches across B2B and B2C segments.
+- Conduct market research, competitive analysis, and TAM/SAM/SOM modeling to identify growth opportunities.
+- Build and execute multi-channel user acquisition campaigns including community-led growth, content, and partnerships.
+- Collaborate with engineering and product teams to translate technical features into compelling value propositions.
+- Develop product positioning, messaging frameworks, and technical whitepapers for target personas.
+- Drive community building and developer relations (DevRel) initiatives to grow platform adoption.
+- Own NPS tracking, funnel optimization, A/B testing, and conversion rate improvement programs.
+- Manage strategic partnerships, sponsorship negotiations, and co-marketing agreements.
+- Produce content strategy including blogs, case studies, podcasts, and event programming.
+- Analyze user behavior using Google Analytics, Amplitude, and Power BI to inform GTM iterations.
+- Execute sales enablement by developing competitive battlecards, demo scripts, and onboarding collateral.
+- Coordinate launch logistics including event management, vendor coordination, and stakeholder alignment.
+
+Requirements:
+- Bachelor's or Master's degree in Computer Science, Marketing, Business, or related field.
+- 2+ years of experience in product marketing, growth, GTM, or developer relations.
+- Strong proficiency in GTM strategy, product positioning, and market research.
+- Experience with community-led growth, influencer partnerships, and content marketing.
+- Familiarity with Python, SQL, n8n, Zapier, and workflow automation tools.
+- Proficiency with Google Analytics, Amplitude, Power BI, and A/B testing frameworks.
+- Experience with Figma, Notion, and marketing operations tools.
+- Strong technical writing, product storytelling, and stakeholder communication skills.
+- Experience running events, podcasts, and community programs at scale.
+- Background in AI/ML products, developer platforms, or SaaS GTM is highly preferred.
+- Lean Six Sigma or Google Project Management certification is a plus.
