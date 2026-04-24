@@ -13,7 +13,8 @@ echo "Compiling $TEX_FILE in $DIR_PATH using Docker..."
 
 # Run pdflatex inside a Docker container
 # Mounting the directory containing the .tex file to /data in the container
-docker run --rm -i -v "$DIR_PATH":/data -w /data texlive/texlive pdflatex "$TEX_FILE"
+docker run --rm -i -v "$DIR_PATH":/data -w /data texlive/texlive \
+  pdflatex -interaction=nonstopmode -output-directory=/data "$TEX_FILE"
 
 # Check if the PDF was created
 PDF_FILE="${TEX_FILE%.tex}.pdf"

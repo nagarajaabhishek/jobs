@@ -63,18 +63,24 @@ class ResumeAgent:
         import subprocess
         
         # Ensure we are in the directory of the .tex file
-        dir_name = os.path.dirname(tex_path)
+        dir_name = os.path.abspath(os.path.dirname(tex_path))
         base_name = os.path.basename(tex_path)
         file_name_no_ext = os.path.splitext(base_name)[0]
         
         self.logger.info(f"Compiling {tex_path} to PDF...")
         try:
-            # Run pdflatex
+            # Run pdflatex (PDF + aux always land beside the .tex / under person folder)
             result = subprocess.run(
-                ["pdflatex", "-interaction=nonstopmode", base_name],
+                [
+                    "pdflatex",
+                    "-interaction=nonstopmode",
+                    "-output-directory",
+                    dir_name,
+                    base_name,
+                ],
                 cwd=dir_name,
                 capture_output=True,
-                text=True
+                text=True,
             )
             if result.returncode != 0:
                 self.logger.error(f"LaTeX Compilation failed: {result.stdout}")

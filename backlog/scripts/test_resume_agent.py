@@ -30,7 +30,7 @@ async def test_tailoring():
     
     output_tex = os.path.join(
         project_root,
-        "core_agents/resume_agent/Resume_Building/Generated/test_tailored_resume.tex",
+        "core_agents/resume_agent/Resume_Building/Abhishek/Generated/test_tailored_resume.tex",
     )
     os.makedirs(os.path.dirname(output_tex), exist_ok=True)
     
