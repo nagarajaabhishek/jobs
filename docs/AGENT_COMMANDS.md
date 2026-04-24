@@ -12,7 +12,7 @@ Behavior with this command:
 - auto-ensures `Manual_JD_Tailor` tab exists
 - reads URLs + `Recommended Resume` from sheet
 - runs tailoring + QA loop
-- writes sheet result columns (`Status`, `Last processed`, `Tailored YAML`, `Error`)
+- writes sheet result columns (`Status`, `Last processed`, `Error`, validation scores, `Resume (PDF)` as the last column)
 - runs variant validation (tailored vs generic recommended) and writes winner columns
 
 ### Useful flags
@@ -28,6 +28,16 @@ Behavior with this command:
   Override resume profile.
 - `--base-yaml <filename>`  
   Override base role YAML.
+
+### Backfill validation scores (existing tailored rows)
+
+If you tailored resumes before variant scoring was written to the sheet, run:
+
+```bash
+python3 scripts/tools/backfill_manual_tailor_validation.py --from-tailor-tab
+```
+
+This recomputes tailored vs generic ATS-like scores from cached JD + YAML files and fills only `Validation Verdict`, `Validation Reason`, `Tailored Score`, `Generic Score`, and `Use Resume` (plus `Last processed`).
 
 ---
 

@@ -1,0 +1,190 @@
+/* Job Automation application shell (agent hub) — not marketing pages */
+
+.app-root {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-primary);
+}
+
+.app-body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+.app-sidebar {
+  width: 240px;
+  flex-shrink: 0;
+  border-right: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+  padding: 20px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.app-sidebar-brand {
+  padding: 0 20px 16px;
+  border-bottom: 1px solid var(--border-color);
+  margin-bottom: 8px;
+}
+
+.app-sidebar-brand a {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-decoration: none;
+  color: var(--text-primary);
+  font-weight: 700;
+  font-size: 1.05rem;
+}
+
+.app-sidebar-brand .sub {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  display: block;
+  margin-top: 2px;
+}
+
+.app-nav-link {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 20px;
+  color: var(--text-secondary);
+  text-decoration: none;
+  font-size: 0.9rem;
+  transition: color 0.15s, background 0.15s;
+}
+
+.app-nav-link:hover {
+  color: var(--text-primary);
+  background: rgba(99, 102, 241, 0.08);
+}
+
+.app-nav-link.active {
+  color: var(--accent-primary);
+  background: rgba(99, 102, 241, 0.12);
+  border-right: 2px solid var(--accent-primary);
+}
+
+.app-sidebar-footer {
+  margin-top: auto;
+  padding: 16px 20px 0;
+  border-top: 1px solid var(--border-color);
+}
+
+.app-main {
+  flex: 1;
+  overflow: auto;
+  padding: 28px 32px 48px;
+  max-width: 1100px;
+}
+
+.app-page-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
+.app-page-lead {
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+  max-width: 640px;
+  margin-bottom: 28px;
+  line-height: 1.5;
+}
+
+.app-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 16px;
+}
+
+.app-card {
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 18px;
+  background: var(--bg-card);
+}
+
+.app-card h3 {
+  font-size: 1rem;
+  font-weight: 600;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.app-card p {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.app-badge {
+  display: inline-block;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: rgba(99, 102, 241, 0.2);
+  color: #a5b4fc;
+  font-weight: 600;
+}
+
+.app-muted {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.app-code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, monospace;
+  font-size: 0.8rem;
+  background: var(--bg-secondary);
+  padding: 2px 6px;
+  border-radius: 4px;
+  border: 1px solid var(--border-color);
+}
+
+@media (max-width: 900px) {
+  .app-body {
+    flex-direction: column;
+  }
+
+  .app-sidebar {
+    width: 100%;
+    border-right: none;
+    border-bottom: 1px solid var(--border-color);
+    flex-direction: row;
+    flex-wrap: wrap;
+    padding: 12px;
+    gap: 4px;
+  }
+
+  .app-sidebar-brand {
+    width: 100%;
+    border-bottom: 1px solid var(--border-color);
+    margin-bottom: 8px;
+    padding-bottom: 12px;
+  }
+
+  .app-nav-link {
+    padding: 8px 14px;
+    border-radius: 8px;
+  }
+
+  .app-nav-link.active {
+    border-right: none;
+  }
+
+  .app-sidebar-footer {
+    width: 100%;
+    border-top: none;
+    padding-top: 8px;
+  }
+}

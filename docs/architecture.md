@@ -2,6 +2,8 @@
 
 This document describes the high-level architecture of the Job Search Automation pipeline. The pipeline is designed around a 4-layer architecture: Sourcing, Storage, Evaluation, and Output.
 
+For the **full layer stack**, build phases, and how this maps to the [CYCLE_SSOT](CYCLE_SSOT.md) / [PRODUCT_CONTRACT](PRODUCT_CONTRACT.md) trio, see [LAYERS_AND_PHASES.md](LAYERS_AND_PHASES.md).
+
 ## Core Layers
 
 ### 1. Sourcing Layer

@@ -2,6 +2,11 @@
 
 This directory contains utility scripts for the Job Automation Pipeline, organized by their purpose.
 
+## Root-level scripts
+
+- **`local_deploy.sh`**: Local production-style deploy — `pip install`, `website_ui` `npm ci` + build, then optional FastAPI + Vite preview (see root [README.md](../README.md#local-deploy-website--optional-api)).
+- **`run_ops_stack.sh`**: Start FastAPI on `:8000` and the **ops dashboard** dev server (`apps/ops_dashboard`, `:5180`). Requires two processes; use this for a one-command local stack.
+
 ## Subdirectories
 
 ### `diagnostics/`

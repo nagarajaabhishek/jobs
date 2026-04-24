@@ -2,11 +2,13 @@
 
 Welcome, fellow agent. This project is optimized for automated job sourcing and evaluation.
 
+**Canonical production code** lives under `apps/cli/legacy/` and `core_agents/` (see [docs/CANONICAL_IMPORTS.md](../docs/CANONICAL_IMPORTS.md)). The `src/` tree remains for legacy tests and scripts; prefer extending the legacy paths for new pipeline features.
+
 ## Architecture Overview
-- **Core (`src/core/`)**: Low-level clients for Google Sheets, LLM Router, and Database.
-- **Scrapers (`src/scrapers/`)**: Target-specific logic for fetching job data.
-- **Agents (`src/agents/`)**: High-level orchestrators that filter and evaluate jobs.
-- **Prompts (`src/prompts/`)**: Markdown-based system prompts for the LLMs.
+- **Core (`src/core/`)**: Legacy low-level clients (many scripts still import here). Prefer `apps/cli/legacy/core/` for new work.
+- **Scrapers (`src/scrapers/`)**: Legacy mirror; production scrapers are under `apps/cli/legacy/scrapers/`.
+- **Agents (`src/agents/`)**: Legacy orchestrators; production `JobEvaluator` is `apps/cli/legacy/agents/evaluate_jobs.py`.
+- **Prompts (`src/prompts/`)**: Markdown prompts; mirrored under `apps/cli/legacy/prompts/` for the CLI pipeline.
 
 ## Operational Flow
 1. **Incremental Sourcing**: `sourcing_agent.py` saves to Google Sheets after *each* query loop. This prevents data loss if a scraper crashes.

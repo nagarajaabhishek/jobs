@@ -70,6 +70,45 @@ graph TD
 - `apps/cli/scripts/`: Utility scripts categorized into `diagnostics/`, `tools/`, and `legacy/`.
 - `config/`: Credentials, `pipeline.yaml`, and local JD cache.
 - `data/`: Profiles, Master Context, and harvested insights.
+- `apps/api/`: FastAPI backend for the ops dashboard ([apps/api/README.md](apps/api/README.md)); reads Google Sheets like the CLI.
+- `apps/ops_dashboard/`: **Single-user ops UI** — jobs to apply, scores, resume links, tailored files ([apps/ops_dashboard/README.md](apps/ops_dashboard/README.md)).
+
+## Architecture docs
+- [docs/LAYERS_AND_PHASES.md](docs/LAYERS_AND_PHASES.md) — layer stack, build phases, SSOT trio with [CYCLE_SSOT](docs/CYCLE_SSOT.md) and [PRODUCT_CONTRACT](docs/PRODUCT_CONTRACT.md).
+- [docs/CANONICAL_IMPORTS.md](docs/CANONICAL_IMPORTS.md) — production import paths (`apps/cli/legacy`, `core_agents`) vs legacy `src/`.
+- [docs/CYCLE_HOOKS.md](docs/CYCLE_HOOKS.md) — post-run digest, feedback, filter learning, sourcing hints.
+- [docs/TAILOR_QA_CHECKLIST.md](docs/TAILOR_QA_CHECKLIST.md) — tailoring QA and manual JD workflow.
+- [docs/ROADMAP_THARA_ADVANCED.md](docs/ROADMAP_THARA_ADVANCED.md) — conversational/RAG/interview roadmap.
+
+## Local deploy (website + optional API)
+
+Mirrors the [Netlify](netlify.toml) build (`website_ui` → `dist`) and serves it with Vite preview, plus the FastAPI shell on port 8000.
+
+```bash
+cd /path/to/Job_Automation && chmod +x scripts/local_deploy.sh
+./scripts/local_deploy.sh              # pip install, npm ci, build, then API + preview
+./scripts/local_deploy.sh --dry-run    # install + build only (no servers)
+SKIP_API=1 ./scripts/local_deploy.sh   # UI only (no `:8000`)
+```
+
+- **UI:** http://127.0.0.1:4173 (default) — same router as production (`/`, `/app`, `/architecture`, …).
+- **API:** http://127.0.0.1:8000/docs when not using `SKIP_API=1`.
+
+For HMR while editing React, use `cd website_ui && npm run dev` instead of this script, then open **http://localhost:5173/app** for the marketing **agent hub** shell.
+
+### Ops dashboard (your pipeline: jobs, scores, resumes)
+
+The product UI for **you** (no auth) lives in **`apps/ops_dashboard`**: Sheet-backed job list, detail with Evidence JSON, tailored file download.
+
+```bash
+# Terminal 1 — API (repo root)
+PYTHONPATH=. uvicorn apps.api.main:app --reload --host 127.0.0.1 --port 8000
+
+# Terminal 2 — UI
+cd apps/ops_dashboard && npm install && npm run dev
+```
+
+Open **http://127.0.0.1:5180**. See [apps/ops_dashboard/README.md](apps/ops_dashboard/README.md).
 
 ## Usage
 Run the full pipeline from the repo root (so `config/pipeline.yaml` resolves):
@@ -87,7 +126,7 @@ This command now auto-handles:
 - ensuring `Manual_JD_Tailor` exists (and required columns are present)
 - reading URL + `Recommended Resume`
 - tailoring + QA loop + LaTeX/PDF generation
-- sheet updates per row: `Status`, `Last processed`, `Tailored YAML`, `Error`
+- sheet updates per row: `Status`, `Last processed`, `Error`, validation scores, and **`Resume (PDF)` last** (absolute path to PDF or `.tex` fallback)
 - variant comparison writeback: `Validation Verdict`, `Validation Reason`, `Tailored Score`, `Generic Score`, `Use Resume`
 
 Disable variant comparison when needed:
@@ -98,6 +137,11 @@ cd /path/to/Job_Automation && python3 scripts/tools/tailor_from_urls.py --from-t
 Generate YAML only (skip QA/PDF):
 ```bash
 cd /path/to/Job_Automation && python3 scripts/tools/tailor_from_urls.py --from-tailor-tab --skip-tailor-validation
+```
+
+Backfill validation scores for rows tailored before the sheet columns existed:
+```bash
+cd /path/to/Job_Automation && python3 scripts/tools/backfill_manual_tailor_validation.py --from-tailor-tab
 ```
 
 ## Configuration

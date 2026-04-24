@@ -1,5 +1,19 @@
 # React + TypeScript + Vite
 
+## Job Automation — agent hub
+
+The operational UI (pipeline, jobs, tailor, profile, settings) lives under **`/app`** and is separate from the marketing pages.
+
+```bash
+cd website_ui
+npm install
+npm run dev
+```
+
+Open **http://localhost:5173/app** (default Vite port). Nested routes: `/app/pipeline`, `/app/jobs`, `/app/resume`, `/app/context`, `/app/settings`. These map to the agents and processes described in the repository `docs/` and will connect to `apps/api` as endpoints are implemented.
+
+---
+
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 
 Currently, two official plugins are available:
