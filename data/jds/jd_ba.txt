@@ -1,0 +1,30 @@
+Job Title: Business Analyst
+
+About the Role:
+We are looking for a detail-oriented Business Analyst to bridge the gap between business stakeholders and technical teams. You will be responsible for requirements elicitation, process modeling, and data storytelling to drive informed product decisions and operational improvements.
+
+Responsibilities:
+- Elicit, document, and manage business requirements through stakeholder interviews, workshops, and surveys.
+- Author Business Requirement Documents (BRDs), Functional Requirement Documents (FRDs), and user stories.
+- Conduct gap analysis, As-Is/To-Be process mapping, and root cause analysis to identify improvement opportunities.
+- Build and maintain data dashboards using Power BI, Tableau, or Excel to communicate insights to leadership.
+- Facilitate UAT sessions, create test cases, and validate system functionality against business requirements.
+- Manage product backlog in Jira, prioritize features based on business value and technical feasibility.
+- Collaborate with QA, Dev, and Design teams to ensure requirements traceability and on-time delivery.
+- Perform market research, competitive analysis, and user research to inform product roadmap decisions.
+- Translate complex data findings into compelling narratives and presentations for executive stakeholders.
+- Identify automation opportunities in CRM and e-commerce workflows using SQL and Python.
+- Support Scrum ceremonies and act as liaison between Product Owner and development team.
+
+Requirements:
+- Bachelor's or Master's degree in Computer Science, Information Systems, or Business.
+- 2+ years of experience in business analysis, product management, or related field.
+- Strong proficiency in requirements documentation: BRD, FRD, use cases, user stories.
+- Experience with Jira, Confluence, Visio, Lucidchart, and process modeling tools.
+- Proficiency in SQL, Excel, Power BI, and data analysis techniques.
+- Familiarity with Agile, Scrum, and Waterfall methodologies.
+- Experience with UAT planning, test case creation, and defect tracking.
+- Strong analytical, problem-solving, and data storytelling skills.
+- Knowledge of REST APIs, SDLC, and CRM systems.
+- Experience with AI tools (ChatGPT, Gemini) for requirements drafting and data analysis.
+- CSPO, CBAP, or Google Data Analytics certification is a plus.

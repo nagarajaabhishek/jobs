@@ -1,0 +1,30 @@
+Job Title: Technical Program Manager (TPM)
+
+About the Role:
+We are looking for a Technical Program Manager to drive delivery of complex, cross-functional programs across AI/ML infrastructure and cloud platform teams. You will work closely with engineering, product, and business stakeholders to ensure on-time, high-quality delivery of technical initiatives.
+
+Responsibilities:
+- Own end-to-end program delivery across multiple engineering workstreams, managing scope, schedule, dependencies, and risks.
+- Drive cross-functional alignment between engineering, product, design, and QA teams using Agile and Scrum methodologies.
+- Architect and maintain program roadmaps, release plans, and milestone trackers in Jira and Confluence.
+- Define and enforce SDLC processes including CI/CD pipelines, release management, and sprint ceremonies.
+- Translate complex technical requirements into clear epics, user stories, and acceptance criteria.
+- Partner with AI/ML teams to manage delivery of LLM, RAG, and multi-agent system programs.
+- Identify and remove impediments, manage critical path dependencies, and drive retrospectives.
+- Monitor KPIs, track sprint velocity, and report program health to executive stakeholders.
+- Lead API design reviews, system design discussions, and infrastructure planning sessions.
+- Facilitate stakeholder communication, produce SOPs, and drive continuous process improvement.
+
+Requirements:
+- Bachelor's or Master's degree in Computer Science, Engineering, or related field.
+- 2+ years of experience in technical program management or product management.
+- Strong proficiency in Agile, Scrum, Kanban, and SAFe frameworks.
+- Hands-on experience with Jira, Linear, Confluence, and project tracking tools.
+- Understanding of cloud architecture (AWS, GCP, Azure), Docker, Kubernetes, and CI/CD pipelines.
+- Familiarity with AI/ML systems, LLMs, RAG architectures, LangChain, and multi-agent workflows.
+- Experience with API design (REST), system design, data modeling, and requirement engineering.
+- Proficiency in Python, SQL, and data analysis.
+- Strong communication, stakeholder management, and cross-functional leadership skills.
+- Experience with Power BI, Tableau, or analytics dashboards.
+- Certifications in Scrum, PMP, or AWS are a plus.
+- Experience with DevOps tools: Terraform, GitHub Actions, PostgreSQL, MongoDB.
