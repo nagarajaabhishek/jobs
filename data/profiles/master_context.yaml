@@ -1,6 +1,9 @@
-# MASTER CONTEXT FILE - SINGLE SOURCE OF TRUTH
-# This file contains ALL professional details, projects, and history.
-# Use 'generate_role_yaml.py' to extract specific resumes.
+# MASTER CONTEXT — SINGLE SOURCE OF TRUTH FOR THIS PERSON
+# Contain the full record here: every role, project, and detail you may ever need.
+# There is no cap on lines, bullets, sections, or field length in this file—add as much
+# information as you want. Resumes, role YAMLs, and compiled matrices are derived
+# artifacts; they may summarize or trim, but the master context stays complete.
+# Optional: use tooling (e.g. generate_role_yaml) to pull subsets for a specific output.
 
 basics:
   name: "Abhishek Nagaraja"
@@ -9,8 +12,8 @@ basics:
   email: "work.abhishekn@gmail.com"
   phone: "" # Add if available
   website: 
-    url: "https://www.abhishekn.in/"
-    display: "www.abhishekn.in"
+    url: "https://www.abhisheknagaraja.com/"
+    display: "www.abhisheknagaraja.com"
   linkedin:
     url: "https://www.linkedin.com/in/abhisheknagaraja/"
     display: "linkedin.com/in/abhisheknagaraja"
@@ -25,8 +28,6 @@ education:
     location: "Arlington, Texas, USA"
     degree: "Master of Science in Computer Science"
     dates: "Aug 2023 - May 2024"
-    details:
-      - "Specialization: Artificial Intelligence & Database Systems"
   
   - id: "uta_ms_em"
     school: "University of Texas at Arlington"
@@ -82,7 +83,7 @@ experience:
     role: "Founder and Community Lead"
     company: "e-DAM Community"
     location: "Hyderabad, India"
-    dates: "March 2021 - Jan 2025"
+    dates: "March 2021 - Aug 2023"
     tags: ["community", "leadership"]
     bullets:
       - "Spearheaded community growth to 5,000+ members by performing \\textbf{Market Analysis} and building a strategic network of industry partners, orchestrating 200+ technical workshops to foster a thriving developer ecosystem in Hyderabad."
@@ -90,14 +91,15 @@ experience:
 
 projects:
   - id: "resume_agent"
-    name: "Resume Agent - AI Resume Engineering System"
+    name: "Resume Agent & Job Search Automation"
     url: "https://github.com/nagarajaabhishek/resume_agent"
     date: "Feb 2026 - Present"
-    description: "Architected a Python-based resume generation system that achieves >90% ATS optimization scores."
+    tags: ["ai", "engineering", "automation", "product"]
+    description: "LaTeX resume engine (YAML → Jinja2 → custom class) integrated into a Job Automation monorepo: sheet-backed sourcing/evaluation, master-profile–grounded scoring, and per-JD tailoring with QA."
     bullets:
-      - "Orchestrated a 'Single Source of Truth' architecture using YAML and Jinja2, reducing resume tailoring time by 95% for multiple job families (TPM, Product, Engineering)."
-      - "Engineered an automated Quality Assurance protocol that enforces the Google 'XYZ' formula, rejecting content that lacks measurable impact or strong action verbs."
-      - "Achieved consistent >90% parsing scores across standard ATS checkers by decoupling data from design using a custom LaTeX class structure."
+      - "Own the \\textbf{single source of truth} path from `master_context.yaml` through role-specific YAML and compiled dense profile matrices, so LLM job evaluation and resume bullets stay auditable, consistent, and ATS-safe (XYZ bullets, weak-verb bans, two-page limits)."
+      - "Implemented \\textbf{TailorAgent} in the automation repo: on strong matches it clones a base role YAML, applies JD-specific LLM edits with guardrails from the tailor QA checklist, and regenerates structured `.tex`/PDF outputs—wired into the main pipeline CLI and `tailor_from_urls.py` for batch runs and the Manual JD Tailor Google Sheet workflow."
+      - "Built \\textbf{operator surfaces} for the same stack—a FastAPI backend and React ops dashboard—on top of Google Sheets for job ingest, verdicts, evidence JSON, and per-row tailor status including PDF paths and optional tailored-vs-generic validation scores."
   - id: "thara_ai"
     name: "Thara: Multi-Agent AI Ecosystem"
     url: "https://withthara.com/"
@@ -124,7 +126,7 @@ projects:
 
   - id: "splitwiser_ai"
     name: "Split-Wiser: AI Expense Tool"
-    url: "https://abhishekn.in/content/splitwise-teardown"
+    url: "https://ai-splitwiser.vercel.app/"
     tags: ["ai", "product", "engineering"]
     bullets:
       - "Reduced manual expense splitting time by 76% (4.75 hours/month) and validated product stability by monitoring and validating the application in a pre-production environment, and by probing, isolating, and troubleshooting reported issues."
